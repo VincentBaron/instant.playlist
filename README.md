@@ -228,7 +228,7 @@ Contracts are exported to the frontend:
 
 ```typescript
 // Frontend usage
-import type { AddUserBody } from '@repo/api/routes_web/users/add_user/contract'
+import type { AddUserBody } from 'api/routes_web/users/add_user/contract'
 
 const createUser = async (data: AddUserBody) => {
   const response = await apiClient.post('/web/users', data)

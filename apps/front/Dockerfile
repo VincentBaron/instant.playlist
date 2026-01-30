@@ -15,15 +15,14 @@ WORKDIR /app
 COPY . .
 
 # Prune the workspace
-RUN turbo prune front --docker
+RUN turbo prune @repo/front --docker
 
 # Installer Stage    
 FROM base AS installer
 WORKDIR /app
 
 # Define build arguments again
-ARG VITE_API_WEB_BASE_URL
-ARG VITE_WS_BASE_URL
+ARG VITE_API_URL
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ARG SENTRY_AUTH_TOKEN
 ARG VITE_POSTHOG_KEY
@@ -31,8 +30,7 @@ ARG VITE_POSTHOG_HOST
 
 
 # Set them as environment variables
-ENV VITE_API_WEB_BASE_URL=$VITE_API_WEB_BASE_URL
-ENV VITE_WS_BASE_URL=$VITE_WS_BASE_URL
+ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 ENV VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY
@@ -46,7 +44,7 @@ COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install --no-frozen-lockfile && pnpm -v && node -v
 
 # Build the project
-RUN pnpm turbo build --filter=front...
+RUN pnpm turbo build --filter=@repo/front...
 
 # Production image
 FROM node:22-slim AS runner

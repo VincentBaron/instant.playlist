@@ -1,5 +1,5 @@
 {
-  "name": "front",
+  "name": "@repo/front",
   "private": true,
   "type": "module",
   "scripts": {

@@ -11,7 +11,7 @@ FROM base AS builder
 WORKDIR /app
 COPY . .
 # Prune the workspace
-RUN turbo prune api --docker
+RUN turbo prune @repo/api --docker
 
 # Installer Stage    
 FROM base AS installer
@@ -24,7 +24,7 @@ COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install
 
 # Build the project and its dependencies
-RUN pnpm turbo run build --filter=api
+RUN pnpm turbo run build --filter=@repo/api
 
 # Runner Stage
 FROM base AS runner
