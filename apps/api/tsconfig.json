@@ -11,6 +11,6 @@
       "@services/*": ["services/*"]
     }
   },
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "tests", "src/**/__tests__", "src/routes_tests"],
   "include": ["src"]
 }

@@ -12,6 +12,9 @@ import routesWeb from "./routes_web";
 import { auth } from "./auth/auth";
 import { BETTER_AUTH_CONFIG } from "./config/better_auth";
 
+const isTestEnvironment = () =>
+  ["development", "test", "local"].includes(process.env.NODE_ENV || "development");
+
 export const createServer = (): Express => {
   const app = express();
 
@@ -51,6 +54,14 @@ export const createServer = (): Express => {
     })
     // Protected routes
     .use("/web", routesWeb)
+
+  // Test routes — only available in development/test environments
+  if (isTestEnvironment()) {
+    const { testsAuther } = require("./middlewares/tests_auther");
+    const { testTracker } = require("./middlewares/test_tracker");
+    const testRoutes = require("./routes_tests").default;
+    app.use("/apitests", testsAuther, testTracker, testRoutes);
+  }
 
   return app;
 };

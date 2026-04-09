@@ -18,6 +18,12 @@ export type UpdateUserInput = {
   role?: string
 }
 
+export type UserQuery = {
+  page: number
+  pageSize: number
+  search?: string
+}
+
 // Database result type (matches Better Auth 'user' table)
 export type DbUser = {
   id: string

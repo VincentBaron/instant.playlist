@@ -1,12 +1,6 @@
 import { getDatabase } from '../../../db/database'
-import type { User } from '../types'
+import type { User, UserQuery } from '../types'
 import { mapDbUserToUser } from '../mapper'
-
-export type UserQuery = {
-  page: number
-  pageSize: number
-  search?: string
-}
 
 export async function getUsersQuery(
   query: UserQuery
