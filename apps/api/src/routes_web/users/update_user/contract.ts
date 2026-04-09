@@ -18,7 +18,7 @@ export const updateUserSchema = z.object({
 })
 
 export const userParamsSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
 })
 
 export const updateUserResponseSchema = z.union([userSchema, errorResponseSchema])

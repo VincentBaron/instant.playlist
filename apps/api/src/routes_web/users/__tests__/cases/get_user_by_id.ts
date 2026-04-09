@@ -11,11 +11,11 @@ export async function getUserById(_req: Request) {
   const created = await user.me.createUser({ name, email })
 
   // When
-  const result = await user.me.getUser(created.data.id)
+  const data = await user.me.getUser(created.id)
 
   // Then
-  isEqual('user id matches', result.data.id, created.data.id)
-  isEqual('user name matches', result.data.name, name)
-  isEqual('user email matches', result.data.email, email)
-  isTruthy('user has role', result.data.role)
+  isEqual('user id matches', data.id, created.id)
+  isEqual('user name matches', data.name, name)
+  isEqual('user email matches', data.email, email)
+  isTruthy('user has role', data.role)
 }

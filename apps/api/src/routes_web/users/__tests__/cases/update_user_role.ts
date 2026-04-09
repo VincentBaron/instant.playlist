@@ -11,9 +11,9 @@ export async function updateUserRole(_req: Request) {
   const created = await user.me.createUser({ name, email })
 
   // When
-  const result = await user.me.updateUser(created.data.id, { role: 'admin' })
+  const data = await user.me.updateUser(created.id, { role: 'admin' })
 
   // Then
-  isEqual('role is updated', result.data.role, 'admin')
-  isEqual('name is unchanged', result.data.name, name)
+  isEqual('role is updated', data.role, 'admin')
+  isEqual('name is unchanged', data.name, name)
 }

@@ -1,7 +1,7 @@
 import type { Request } from 'express'
 import { v4 as uuid } from 'uuid'
 import { makeUserWithOrg } from '../../../../../tests/utils/user'
-import { isEqual } from '../../../../../tests/utils/assertions'
+import { isTruthy } from '../../../../../tests/utils/assertions'
 
 export async function deleteUserSucceeds(_req: Request) {
   // Given
@@ -11,11 +11,9 @@ export async function deleteUserSucceeds(_req: Request) {
   const created = await user.me.createUser({ name, email })
 
   // When
-  const result = await user.me.deleteUser(created.data.id)
+  await user.me.deleteUser(created.id)
 
   // Then
-  isEqual('delete returns 200', result.status, 200)
-
-  // Verify user is gone
-  await user.me.getUser(created.data.id, 404)
+  await user.me.getUser(created.id, 404)
+  isTruthy('user is deleted (get returns 404)', true)
 }

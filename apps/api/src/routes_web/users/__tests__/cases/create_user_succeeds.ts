@@ -10,11 +10,10 @@ export async function createUserSucceeds(_req: Request) {
   const newEmail = `test+${uuid().substring(0, 8)}@example.com`
 
   // When
-  const result = await user.me.createUser({ name: newName, email: newEmail })
+  const data = await user.me.createUser({ name: newName, email: newEmail })
 
   // Then
-  isEqual('status is 200', result.status, 200)
-  isTruthy('response has user id', result.data.id)
-  isEqual('name matches', result.data.name, newName)
-  isEqual('email matches', result.data.email, newEmail)
+  isTruthy('response has user id', data.id)
+  isEqual('name matches', data.name, newName)
+  isEqual('email matches', data.email, newEmail)
 }

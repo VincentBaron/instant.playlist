@@ -8,7 +8,7 @@ const router = Router()
 router.post('/seed_users', async (req: Request, res: Response) => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { userManager } = require('../../tests/user/user_manager')
+    const { userManager } = require('../../tests/utils/user')
     const count = req.body?.count || 30
     await userManager.seed(count)
     res.json({ success: true, count })
@@ -21,7 +21,7 @@ router.post('/seed_users', async (req: Request, res: Response) => {
 router.post('/unlock_users', async (req: Request, res: Response) => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { userManager } = require('../../tests/user/user_manager')
+    const { userManager } = require('../../tests/utils/user')
     const groupName = req.body?.groupName
     if (groupName) {
       await userManager.unlockAllUsers(groupName)
@@ -36,8 +36,8 @@ router.post('/unlock_users', async (req: Request, res: Response) => {
 router.get('/additional_users', async (_req: Request, res: Response) => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { userManager } = require('../../tests/user/user_manager')
-    res.json({ count: userManager.getAdditionalUserCount?.() ?? 0 })
+    const { userManager } = require('../../tests/utils/user')
+    res.json({ count: userManager.newUsers ?? 0 })
   } catch (error) {
     res.json({ count: 0 })
   }

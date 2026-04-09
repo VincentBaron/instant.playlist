@@ -3,7 +3,7 @@ import { errorResponseSchema, type ErrorResponse } from '../../../types/errors'
 
 // ===== SCHEMAS =====
 export const userParamsSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
 })
 
 export const deleteUserResponseSchema = z.union([

@@ -7,9 +7,9 @@ export async function getUsersReturnsList(_req: Request) {
   const { user } = await makeUserWithOrg('users-list')
 
   // When
-  const result = await user.me.getUsers()
+  const data = await user.me.getUsers()
 
   // Then
-  isTruthy('response has users array', Array.isArray(result.data.users))
-  isGreaterThanOrEqual('total is at least 1', result.data.total, 1)
+  isTruthy('response has users array', Array.isArray(data.users))
+  isGreaterThanOrEqual('total is at least 1', data.total, 1)
 }
