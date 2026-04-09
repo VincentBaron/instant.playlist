@@ -5,6 +5,10 @@ import { BETTER_AUTH_CONFIG } from '../config/better_auth'
 import { SERVER_CONFIG } from '../config/server'
 import { logger } from '@repo/logger'
 import { USER_ROLES } from './user_roles'
+import { sendEmail } from '../services/email/email_service'
+import { passwordResetTemplate } from '../services/email/templates/password_reset'
+import { emailVerificationTemplate } from '../services/email/templates/email_verification'
+import { orgInvitationTemplate } from '../services/email/templates/org_invitation'
 
 export const auth = betterAuth({
   database: new Pool({
@@ -29,9 +33,10 @@ export const auth = betterAuth({
       logger.info({
         msg: 'Password reset requested',
         event: 'auth.password_reset.requested',
-        metadata: { userId: user.id, email: user.email, resetLink: url },
+        metadata: { userId: user.id, email: user.email },
       })
-      // TODO: implement email sending — for now the reset link is logged
+      const { subject, html } = passwordResetTemplate({ resetLink: url, userName: user.name })
+      await sendEmail({ to: user.email, subject, html })
     },
     resetPasswordTokenExpiresIn: 3600,
   },
@@ -43,9 +48,10 @@ export const auth = betterAuth({
       logger.info({
         msg: 'Email verification requested',
         event: 'auth.email_verification.requested',
-        metadata: { userId: user.id, email: user.email, verificationLink: url },
+        metadata: { userId: user.id, email: user.email },
       })
-      // TODO: implement email sending — for now the verification link is logged
+      const { subject, html } = emailVerificationTemplate({ verificationLink: url, userName: user.name })
+      await sendEmail({ to: user.email, subject, html })
     },
   },
 
@@ -156,10 +162,15 @@ export const auth = betterAuth({
             organizationId: data.organization.id,
             role: data.role,
             invitationId: data.id,
-            inviteLink,
           },
         })
-        // TODO: implement email sending — for now the invite link is logged
+        const { subject, html } = orgInvitationTemplate({
+          inviterName: data.inviter.user.name,
+          orgName: data.organization.name,
+          inviteLink,
+          role: data.role,
+        })
+        await sendEmail({ to: data.email, subject, html })
       },
     }),
   ],
