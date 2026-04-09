@@ -21,6 +21,8 @@ import { Route as AuthOrgsIndexRouteImport } from './routes/_auth/orgs/index'
 import { Route as AdminAdminIndexRouteImport } from './routes/_admin/admin/index'
 import { Route as AuthOrgsOrgIdRouteImport } from './routes/_auth/orgs/$orgId'
 import { Route as AdminAdminUsersRouteImport } from './routes/_admin/admin/users'
+import { Route as AuthOrgsOrgIdIndexRouteImport } from './routes/_auth/orgs/$orgId/index'
+import { Route as AuthOrgsOrgIdSettingsRouteImport } from './routes/_auth/orgs/$orgId/settings'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -81,6 +83,16 @@ const AdminAdminUsersRoute = AdminAdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const AuthOrgsOrgIdIndexRoute = AuthOrgsOrgIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthOrgsOrgIdRoute,
+} as any)
+const AuthOrgsOrgIdSettingsRoute = AuthOrgsOrgIdSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthOrgsOrgIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -90,9 +102,11 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/organization/accept-invitation': typeof OrganizationAcceptInvitationRoute
   '/admin/users': typeof AdminAdminUsersRoute
-  '/orgs/$orgId': typeof AuthOrgsOrgIdRoute
+  '/orgs/$orgId': typeof AuthOrgsOrgIdRouteWithChildren
   '/admin': typeof AdminAdminIndexRoute
   '/orgs': typeof AuthOrgsIndexRoute
+  '/orgs/$orgId/settings': typeof AuthOrgsOrgIdSettingsRoute
+  '/orgs/$orgId/': typeof AuthOrgsOrgIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,9 +116,10 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/organization/accept-invitation': typeof OrganizationAcceptInvitationRoute
   '/admin/users': typeof AdminAdminUsersRoute
-  '/orgs/$orgId': typeof AuthOrgsOrgIdRoute
   '/admin': typeof AdminAdminIndexRoute
   '/orgs': typeof AuthOrgsIndexRoute
+  '/orgs/$orgId/settings': typeof AuthOrgsOrgIdSettingsRoute
+  '/orgs/$orgId': typeof AuthOrgsOrgIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -117,9 +132,11 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/organization/accept-invitation': typeof OrganizationAcceptInvitationRoute
   '/_admin/admin/users': typeof AdminAdminUsersRoute
-  '/_auth/orgs/$orgId': typeof AuthOrgsOrgIdRoute
+  '/_auth/orgs/$orgId': typeof AuthOrgsOrgIdRouteWithChildren
   '/_admin/admin/': typeof AdminAdminIndexRoute
   '/_auth/orgs/': typeof AuthOrgsIndexRoute
+  '/_auth/orgs/$orgId/settings': typeof AuthOrgsOrgIdSettingsRoute
+  '/_auth/orgs/$orgId/': typeof AuthOrgsOrgIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -134,6 +151,8 @@ export interface FileRouteTypes {
     | '/orgs/$orgId'
     | '/admin'
     | '/orgs'
+    | '/orgs/$orgId/settings'
+    | '/orgs/$orgId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -143,9 +162,10 @@ export interface FileRouteTypes {
     | '/signup'
     | '/organization/accept-invitation'
     | '/admin/users'
-    | '/orgs/$orgId'
     | '/admin'
     | '/orgs'
+    | '/orgs/$orgId/settings'
+    | '/orgs/$orgId'
   id:
     | '__root__'
     | '/'
@@ -160,6 +180,8 @@ export interface FileRouteTypes {
     | '/_auth/orgs/$orgId'
     | '/_admin/admin/'
     | '/_auth/orgs/'
+    | '/_auth/orgs/$orgId/settings'
+    | '/_auth/orgs/$orgId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -259,6 +281,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/_auth/orgs/$orgId/': {
+      id: '/_auth/orgs/$orgId/'
+      path: '/'
+      fullPath: '/orgs/$orgId/'
+      preLoaderRoute: typeof AuthOrgsOrgIdIndexRouteImport
+      parentRoute: typeof AuthOrgsOrgIdRoute
+    }
+    '/_auth/orgs/$orgId/settings': {
+      id: '/_auth/orgs/$orgId/settings'
+      path: '/settings'
+      fullPath: '/orgs/$orgId/settings'
+      preLoaderRoute: typeof AuthOrgsOrgIdSettingsRouteImport
+      parentRoute: typeof AuthOrgsOrgIdRoute
+    }
   }
 }
 
@@ -274,13 +310,27 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface AuthOrgsOrgIdRouteChildren {
+  AuthOrgsOrgIdSettingsRoute: typeof AuthOrgsOrgIdSettingsRoute
+  AuthOrgsOrgIdIndexRoute: typeof AuthOrgsOrgIdIndexRoute
+}
+
+const AuthOrgsOrgIdRouteChildren: AuthOrgsOrgIdRouteChildren = {
+  AuthOrgsOrgIdSettingsRoute: AuthOrgsOrgIdSettingsRoute,
+  AuthOrgsOrgIdIndexRoute: AuthOrgsOrgIdIndexRoute,
+}
+
+const AuthOrgsOrgIdRouteWithChildren = AuthOrgsOrgIdRoute._addFileChildren(
+  AuthOrgsOrgIdRouteChildren,
+)
+
 interface AuthRouteChildren {
-  AuthOrgsOrgIdRoute: typeof AuthOrgsOrgIdRoute
+  AuthOrgsOrgIdRoute: typeof AuthOrgsOrgIdRouteWithChildren
   AuthOrgsIndexRoute: typeof AuthOrgsIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
-  AuthOrgsOrgIdRoute: AuthOrgsOrgIdRoute,
+  AuthOrgsOrgIdRoute: AuthOrgsOrgIdRouteWithChildren,
   AuthOrgsIndexRoute: AuthOrgsIndexRoute,
 }
 
