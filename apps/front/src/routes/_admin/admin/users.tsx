@@ -9,7 +9,7 @@ import {
   useUpdateUser,
   type UsersSearchParams,
 } from '@/lib/hooks/use-users'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   UserSearchForm,
   CreateUserDialog,

@@ -3,7 +3,7 @@ import { ShieldCheck, Building } from 'lucide-react'
 export interface NavItem {
   title: string
   url: string
-  icon: typeof Home
+  icon: typeof Building
   adminOnly?: boolean
 }
 

@@ -15,8 +15,6 @@ export const Route = createFileRoute('/_auth/settings')({
 })
 
 function SettingsPage() {
-  const { user } = useAuth()
-
   return (
     <div className="space-y-6">
       <div>

@@ -21,7 +21,7 @@ export const organizationsListOptions = () =>
     queryKey: organizationsKeys.list(),
     queryFn: async () => {
       const result = await authClient.organization.list()
-      return (result.data ?? []) as Organization[]
+      return (result.data ?? []) as unknown as Organization[]
     },
     staleTime: 60 * 1000,
   })

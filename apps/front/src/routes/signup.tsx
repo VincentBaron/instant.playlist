@@ -77,6 +77,7 @@ function SignUpPage() {
       name: values.name,
       email: values.email,
       password: values.password,
+      role: 'user',
     })
 
     if (error) {

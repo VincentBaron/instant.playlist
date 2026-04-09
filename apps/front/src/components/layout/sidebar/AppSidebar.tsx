@@ -113,9 +113,7 @@ export function AppSidebar({ variant = 'user' }: AppSidebarProps) {
 }
 
 function SidebarToggle() {
-  const { toggleSidebar, state } = useSidebar()
   const { theme, setTheme } = useTheme()
-  const isCollapsed = state === 'collapsed'
 
   const toggleTheme = () => {
     if (theme === 'light') setTheme('dark')

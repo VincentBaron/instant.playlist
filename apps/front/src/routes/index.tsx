@@ -16,9 +16,6 @@ import {
   Terminal,
   Lock,
   Palette,
-  Globe,
-  FileCode,
-  Monitor,
 } from 'lucide-react'
 
 export const Route = createFileRoute('/')({ component: App })
@@ -41,12 +38,6 @@ function App() {
     { icon: GitBranch, title: 'Type-Safe Contracts', description: 'API contracts shared between frontend and backend with Zod schemas.' },
     { icon: Terminal, title: 'Database Migrations', description: 'Versioned migrations with Kysely and auto-generated types.' },
     { icon: Lock, title: 'Protected Routes', description: 'Authentication-protected pages with automatic redirects.' },
-  ]
-
-  const demos = [
-    { icon: Globe, title: 'API Request', description: 'Fetch data from TanStack Start API routes', to: '/demo/start/api-request' as const },
-    { icon: FileCode, title: 'Server Functions', description: 'Todo app with server-side mutations', to: '/demo/start/server-funcs' as const },
-    { icon: Monitor, title: 'SSR Demos', description: 'SPA mode, Full SSR, and Data-only rendering', to: '/demo/start/ssr' as const },
   ]
 
   return (
