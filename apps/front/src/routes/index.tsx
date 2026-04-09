@@ -11,11 +11,13 @@ import {
   BarChart3,
   Layers,
   Building,
-  Box,
   GitBranch,
-  Terminal,
   Lock,
   Palette,
+  FlaskConical,
+  ShieldCheck,
+  Users,
+  Settings,
 } from 'lucide-react'
 
 export const Route = createFileRoute('/')({ component: App })
@@ -24,20 +26,23 @@ function App() {
   const { isAuthenticated: isSignedIn } = useAuth()
 
   const stack = [
-    { icon: Layers, title: 'Turborepo Monorepo', description: 'Organized workspace with shared packages for logger, metrics, ESLint, TypeScript configs, and Jest presets.' },
-    { icon: Zap, title: 'React 19 + TanStack', description: 'Modern React with TanStack Router for file-based routing and TanStack Query for server state management.' },
-    { icon: Server, title: 'Express API', description: 'Type-safe REST API with Zod validation and contract-based route organization shared with the frontend.' },
-    { icon: Database, title: 'PostgreSQL + Kysely', description: 'Type-safe SQL queries with Kysely, automatic migrations, and auto-generated TypeScript types.' },
-    { icon: Shield, title: 'Better Auth', description: 'Complete auth system with email/password sign-in, sign-up, protected routes, and cookie-based sessions.' },
+    { icon: Layers, title: 'Turborepo Monorepo', description: 'Organized workspace with shared ESLint plugin, TypeScript configs, logger, metrics, and Jest presets.' },
+    { icon: Zap, title: 'React 19 + TanStack', description: 'TanStack Router with file-based routing, TanStack Query with SSR-safe prefetch and queryOptions pattern.' },
+    { icon: Server, title: 'Express API', description: 'Type-safe REST API with Zod contracts shared between frontend and backend.' },
+    { icon: Database, title: 'PostgreSQL + Kysely', description: 'Type-safe SQL queries with automatic migrations and auto-generated TypeScript types.' },
+    { icon: Shield, title: 'Better Auth', description: 'Email/password auth with organizations, member roles, invitations, and cookie-based sessions.' },
     { icon: BarChart3, title: 'Full Observability', description: 'Prometheus metrics, Grafana dashboards, Loki log aggregation, and structured Pino logging.' },
-    { icon: Box, title: 'Docker Infrastructure', description: 'PostgreSQL, Redis Stack, Prometheus, Grafana, and Loki ready to go.' },
-    { icon: Palette, title: 'Shadcn/ui + Tailwind', description: 'Beautiful UI components with Radix primitives, dark/light theme support, and Tailwind CSS 4.' },
+    { icon: FlaskConical, title: 'Integration Tests', description: 'BDD-style test framework with user pooling, domain users, Given/When/Then structure, and auto-cleanup.' },
+    { icon: Palette, title: 'Shadcn/ui + Tailwind 4', description: 'Beautiful UI with Radix primitives, collapsible sidebar, dark/light theme, and full component library.' },
   ]
 
   const features = [
+    { icon: Building, title: 'Organization Management', description: 'Multi-org with member management, role switching, invitations, and org settings.' },
+    { icon: ShieldCheck, title: 'Admin Backoffice', description: 'Dual sidebar with admin panel, user role management, and role-based access control.' },
+    { icon: Users, title: 'User Management', description: 'Full CRUD with role editing, search, pagination, and admin-only access.' },
     { icon: GitBranch, title: 'Type-Safe Contracts', description: 'API contracts shared between frontend and backend with Zod schemas.' },
-    { icon: Terminal, title: 'Database Migrations', description: 'Versioned migrations with Kysely and auto-generated types.' },
-    { icon: Lock, title: 'Protected Routes', description: 'Authentication-protected pages with automatic redirects.' },
+    { icon: Lock, title: 'Protected Routes', description: 'Auth-protected pages, admin-only routes, and automatic redirects.' },
+    { icon: Settings, title: 'Account Settings', description: 'Profile editing, password change, forgot/reset password flows.' },
   ]
 
   return (
@@ -51,8 +56,8 @@ function App() {
             Production-Ready Full-Stack Monorepo Boilerplate
           </p>
           <p className="text-muted-foreground max-w-3xl mx-auto">
-            A comprehensive starter template with React 19, Express, PostgreSQL, Better Auth,
-            and full observability stack. Everything you need to build modern web applications.
+            React 19, Express, PostgreSQL, Better Auth with multi-org support,
+            integration test framework, custom ESLint plugin, and full observability stack.
           </p>
 
           <div className="flex flex-col items-center gap-4 pt-4">
@@ -68,31 +73,26 @@ function App() {
                 </>
               )}
               {isSignedIn && (
-                <Button asChild>
-                  <Link to="/orgs">
-                    <Building className="w-4 h-4" />
-                    Organizations Demo
-                  </Link>
-                </Button>
+                <>
+                  <Button asChild>
+                    <Link to="/orgs">
+                      <Building className="w-4 h-4" />
+                      Organizations
+                    </Link>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link to="/admin">
+                      <ShieldCheck className="w-4 h-4" />
+                      Admin Panel
+                    </Link>
+                  </Button>
+                </>
               )}
-              <Button variant="outline" asChild>
-                <a href="https://github.com" target="_blank" rel="noopener noreferrer">
-                  View on GitHub
-                </a>
-              </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              {isSignedIn ? (
-                <>
-                  Check out the{' '}
-                  <Link to="/orgs" className="underline">
-                    Users Demo
-                  </Link>{' '}
-                  to see the full-stack architecture in action
-                </>
-              ) : (
-                'Sign in to access the protected Users Demo page'
-              )}
+              {isSignedIn
+                ? 'Explore organization management, admin backoffice, and account settings.'
+                : 'Sign in to access organizations, admin panel, and account settings.'}
             </p>
           </div>
         </div>
@@ -141,54 +141,11 @@ function App() {
 
       <Separator />
 
-      <section className="py-16 px-6 max-w-5xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-12">Architecture Overview</h2>
+      <section className="py-16 px-6 max-w-3xl mx-auto">
+        <h2 className="text-3xl font-bold text-center mb-8">Quick Start</h2>
         <Card>
           <CardContent className="p-6">
             <pre className="text-sm text-muted-foreground overflow-x-auto">
-{`turbo-express-start-boilerplate/
-├── apps/
-│   ├── api/                 # Express backend (port 3001)
-│   │   ├── src/
-│   │   │   ├── config/      # Environment & auth config
-│   │   │   ├── db/          # Database, migrations, types
-│   │   │   ├── middlewares/ # Auth, metrics, validation
-│   │   │   ├── routes_web/  # API routes with contracts
-│   │   │   ├── services/    # Business logic
-│   │   │   └── auth/        # Better Auth configuration
-│   │   └── package.json
-│   │
-│   └── front/               # React frontend (port 3000)
-│       └── src/
-│           ├── components/  # UI components, layout, sidebar
-│           ├── routes/      # TanStack Router pages
-│           │   ├── _auth/   # Protected routes (users)
-│           │   ├── signin   # Sign-in page
-│           │   └── signup   # Sign-up page
-│           └── lib/         # API client, hooks, utils
-│
-├── packages/
-│   ├── logger/              # Pino logging + Loki
-│   ├── metrics/             # Prometheus metrics
-│   ├── eslint-config/       # Shared ESLint
-│   ├── typescript-config/   # Shared TS configs
-│   └── jest-presets/        # Test configurations
-│
-└── docker-compose.yml       # PostgreSQL, Redis,
-                             # Prometheus, Grafana, Loki`}
-            </pre>
-          </CardContent>
-        </Card>
-      </section>
-
-      <Separator />
-
-      <section className="py-16 px-6">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-8">Quick Start</h2>
-          <Card>
-            <CardContent className="p-6">
-              <pre className="text-sm text-muted-foreground overflow-x-auto">
 {`# Install dependencies
 pnpm install
 
@@ -205,20 +162,18 @@ pnpm db:migrate
 # Start development servers
 pnpm dev
 
-# Frontend: http://localhost:3000
-# API: http://localhost:3001
-# Grafana: http://localhost:3201`}
-              </pre>
-            </CardContent>
-          </Card>
-        </div>
+# Run integration tests
+pnpm --filter @repo/api test:integration`}
+            </pre>
+          </CardContent>
+        </Card>
       </section>
 
       <Separator />
 
       <footer className="py-8 px-6">
         <p className="text-center text-sm text-muted-foreground">
-          Built with Turborepo, React, Express, PostgreSQL, and Better Auth
+          Built with Turborepo, React 19, Express, PostgreSQL, and Better Auth
         </p>
       </footer>
     </div>
