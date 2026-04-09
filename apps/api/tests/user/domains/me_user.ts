@@ -35,7 +35,19 @@ export class MeUser {
     return this.user.get_auth<{ users: any[]; total: number }>('/users', expectedCode)
   }
 
+  async getUser(userId: string, expectedCode: ExpectedResponseCode = 200) {
+    return this.user.get_auth<{ id: string; name: string; email: string; role: string }>(`/users/${userId}`, expectedCode)
+  }
+
   async createUser(input: { name: string; email: string }, expectedCode: ExpectedResponseCode = 200) {
-    return this.user.post_auth<{ id: string; name: string; email: string }>('/users', input, expectedCode)
+    return this.user.post_auth<{ id: string; name: string; email: string; role: string }>('/users', input, expectedCode)
+  }
+
+  async updateUser(userId: string, input: { name?: string; email?: string; role?: string }, expectedCode: ExpectedResponseCode = 200) {
+    return this.user.patch_auth<{ id: string; name: string; email: string; role: string }>(`/users/${userId}`, input, expectedCode)
+  }
+
+  async deleteUser(userId: string, expectedCode: ExpectedResponseCode = 200) {
+    return this.user.del_auth(`/users/${userId}`, expectedCode)
   }
 }
