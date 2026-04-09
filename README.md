@@ -9,6 +9,7 @@ A production-ready, full-stack monorepo boilerplate for building modern web appl
 - **Express API** - Type-safe REST API with Zod validation and contract-based routes
 - **PostgreSQL + Kysely** - Type-safe SQL with auto-generated types and migrations
 - **Better Auth** - Email/password auth with organization support, roles, and invitations
+- **Resend Emails** - Transactional emails for password reset, verification, and org invitations
 - **Admin Backoffice** - Dual sidebar system with role-based admin panel
 - **Organization Management** - Multi-org with member management, invitations, and settings
 - **Integration Test System** - BDD-style test framework with user pooling and auto-cleanup

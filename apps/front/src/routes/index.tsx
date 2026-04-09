@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useAuth } from '@/lib/auth-provider'
+import { APP_NAME } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
 import {
   Zap,
   Server,
@@ -12,169 +12,234 @@ import {
   Layers,
   Building,
   GitBranch,
-  Lock,
   Palette,
   FlaskConical,
   ShieldCheck,
   Users,
   Settings,
+  Mail,
+  ArrowRight,
+  Check,
+  Terminal,
 } from 'lucide-react'
 
 export const Route = createFileRoute('/')({ component: App })
 
 function App() {
-  const { isAuthenticated: isSignedIn } = useAuth()
-
-  const stack = [
-    { icon: Layers, title: 'Turborepo Monorepo', description: 'Organized workspace with shared ESLint plugin, TypeScript configs, logger, metrics, and Jest presets.' },
-    { icon: Zap, title: 'React 19 + TanStack', description: 'TanStack Router with file-based routing, TanStack Query with SSR-safe prefetch and queryOptions pattern.' },
-    { icon: Server, title: 'Express API', description: 'Type-safe REST API with Zod contracts shared between frontend and backend.' },
-    { icon: Database, title: 'PostgreSQL + Kysely', description: 'Type-safe SQL queries with automatic migrations and auto-generated TypeScript types.' },
-    { icon: Shield, title: 'Better Auth', description: 'Email/password auth with organizations, member roles, invitations, and cookie-based sessions.' },
-    { icon: BarChart3, title: 'Full Observability', description: 'Prometheus metrics, Grafana dashboards, Loki log aggregation, and structured Pino logging.' },
-    { icon: FlaskConical, title: 'Integration Tests', description: 'BDD-style test framework with user pooling, domain users, Given/When/Then structure, and auto-cleanup.' },
-    { icon: Palette, title: 'Shadcn/ui + Tailwind 4', description: 'Beautiful UI with Radix primitives, collapsible sidebar, dark/light theme, and full component library.' },
-  ]
-
-  const features = [
-    { icon: Building, title: 'Organization Management', description: 'Multi-org with member management, role switching, invitations, and org settings.' },
-    { icon: ShieldCheck, title: 'Admin Backoffice', description: 'Dual sidebar with admin panel, user role management, and role-based access control.' },
-    { icon: Users, title: 'User Management', description: 'Full CRUD with role editing, search, pagination, and admin-only access.' },
-    { icon: GitBranch, title: 'Type-Safe Contracts', description: 'API contracts shared between frontend and backend with Zod schemas.' },
-    { icon: Lock, title: 'Protected Routes', description: 'Auth-protected pages, admin-only routes, and automatic redirects.' },
-    { icon: Settings, title: 'Account Settings', description: 'Profile editing, password change, forgot/reset password flows.' },
-  ]
+  const { isAuthenticated } = useAuth()
 
   return (
     <div className="min-h-screen bg-background">
-      <section className="py-20 px-6 text-center">
-        <div className="max-w-5xl mx-auto space-y-6">
-          <h1 className="text-5xl md:text-6xl font-black tracking-tight">
+      {/* Nav */}
+      <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-14">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
+              {APP_NAME[0]}
+            </div>
+            <span className="font-semibold tracking-tight">{APP_NAME}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {isAuthenticated ? (
+              <Button size="sm" asChild>
+                <Link to="/orgs">
+                  Dashboard
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/signin">Log in</Link>
+                </Button>
+                <Button size="sm" asChild>
+                  <Link to="/signup">Get Started</Link>
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section className="py-24 md:py-32 px-6">
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          <Badge variant="secondary" className="px-3 py-1 text-xs font-medium">
+            Full-Stack Boilerplate
+          </Badge>
+          <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1]">
             Turbo Express Start
           </h1>
-          <p className="text-xl text-muted-foreground">
-            Production-Ready Full-Stack Monorepo Boilerplate
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            A production-ready full-stack monorepo with auth, organizations, admin panel,
+            transactional emails, integration tests, and observability.
           </p>
-          <p className="text-muted-foreground max-w-3xl mx-auto">
-            React 19, Express, PostgreSQL, Better Auth with multi-org support,
-            integration test framework, custom ESLint plugin, and full observability stack.
-          </p>
-
-          <div className="flex flex-col items-center gap-4 pt-4">
-            <div className="flex gap-4 flex-wrap justify-center">
-              {!isSignedIn && (
-                <>
-                  <Button asChild>
-                    <Link to="/signin">Sign In</Link>
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <Link to="/signup">Create Account</Link>
-                  </Button>
-                </>
-              )}
-              {isSignedIn && (
-                <>
-                  <Button asChild>
-                    <Link to="/orgs">
-                      <Building className="w-4 h-4" />
-                      Organizations
-                    </Link>
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <Link to="/admin">
-                      <ShieldCheck className="w-4 h-4" />
-                      Admin Panel
-                    </Link>
-                  </Button>
-                </>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {isSignedIn
-                ? 'Explore organization management, admin backoffice, and account settings.'
-                : 'Sign in to access organizations, admin panel, and account settings.'}
-            </p>
+          <div className="flex gap-3 justify-center pt-2">
+            {isAuthenticated ? (
+              <>
+                <Button size="lg" asChild>
+                  <Link to="/orgs">
+                    <Building className="w-4 h-4" />
+                    Dashboard
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" asChild>
+                  <Link to="/admin">
+                    <ShieldCheck className="w-4 h-4" />
+                    Admin
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button size="lg" asChild>
+                  <Link to="/signup">
+                    Get Started
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" asChild>
+                  <Link to="/signin">Log in</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </section>
 
-      <Separator />
-
-      <section className="py-16 px-6 max-w-7xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-2">Complete Tech Stack</h2>
-        <p className="text-muted-foreground text-center mb-12">
-          Everything configured and ready for production deployment
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stack.map((item, index) => (
-            <Card key={index}>
-              <CardHeader>
-                <item.icon className="w-8 h-8 mb-2 text-muted-foreground" />
-                <CardTitle className="text-lg">{item.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <Separator />
-
-      <section className="py-16 px-6">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Key Features</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <div key={index} className="text-center space-y-2">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-muted mb-2">
-                  <feature.icon className="w-6 h-6 text-muted-foreground" />
+      {/* What's included */}
+      <section className="py-20 px-6 border-t">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Tech Stack</h2>
+            <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+              Everything configured and ready for production.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[
+              { icon: Layers, title: 'Turborepo', desc: 'Monorepo with shared packages, ESLint plugin, TypeScript configs, and Jest presets.' },
+              { icon: Zap, title: 'React 19 + TanStack', desc: 'File-based routing, SSR, query prefetching with queryOptions pattern.' },
+              { icon: Server, title: 'Express + Zod', desc: 'Type-safe API with contracts shared between frontend and backend.' },
+              { icon: Database, title: 'PostgreSQL + Kysely', desc: 'Type-safe SQL, automatic migrations, auto-generated types.' },
+              { icon: Shield, title: 'Better Auth', desc: 'Email/password, organizations, roles, invitations, cookie sessions.' },
+              { icon: Mail, title: 'Resend Emails', desc: 'Password reset, email verification, org invitations with HTML templates.' },
+              { icon: FlaskConical, title: 'Integration Tests', desc: 'BDD framework with user pooling, domain users, and auto-cleanup.' },
+              { icon: Palette, title: 'Shadcn/ui + Tailwind 4', desc: 'Full component library, collapsible sidebar, dark/light theme.' },
+            ].map((item, i) => (
+              <div key={i} className="space-y-3">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-muted">
+                  <item.icon className="w-5 h-5 text-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold">{feature.title}</h3>
-                <p className="text-muted-foreground">{feature.description}</p>
+                <h3 className="font-semibold">{item.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <Separator />
-
-      <section className="py-16 px-6 max-w-3xl mx-auto">
-        <h2 className="text-3xl font-bold text-center mb-8">Quick Start</h2>
-        <Card>
-          <CardContent className="p-6">
-            <pre className="text-sm text-muted-foreground overflow-x-auto">
-{`# Install dependencies
-pnpm install
-
-# Copy environment variables
-cp .env.example .env
-
-# Start infrastructure
-docker network create app_network
-docker-compose up -d
-
-# Run database migrations
-pnpm db:migrate
-
-# Start development servers
-pnpm dev
-
-# Run integration tests
-pnpm --filter @repo/api test:integration`}
-            </pre>
-          </CardContent>
-        </Card>
+      {/* Features */}
+      <section className="py-20 px-6 border-t bg-muted/30">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Built-in Features</h2>
+            <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+              Ready to use out of the box.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[
+              { icon: Building, title: 'Multi-Organization', items: ['Create and switch orgs', 'Member roles (owner, admin, member)', 'Email invitations with Resend', 'Org settings with inline editing'] },
+              { icon: ShieldCheck, title: 'Admin Backoffice', items: ['Dual sidebar (user + admin)', 'Role-based route protection', 'User management with role editing', 'Separate admin layout'] },
+              { icon: Users, title: 'User Management', items: ['Full CRUD operations', 'Role assignment (user, admin, super_admin)', 'Search and pagination', 'Integration tested'] },
+              { icon: Settings, title: 'Account & Auth', items: ['Profile editing', 'Password change', 'Forgot / reset password flow', 'Email verification on signup'] },
+              { icon: GitBranch, title: 'Developer Experience', items: ['15 custom ESLint rules', 'Type-safe API contracts', 'Query key factories', 'Route loader prefetching'] },
+              { icon: BarChart3, title: 'Observability', items: ['Prometheus metrics', 'Grafana dashboards', 'Loki log aggregation', 'Structured Pino logging'] },
+            ].map((feature, i) => (
+              <div key={i} className="rounded-xl border bg-background p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-muted">
+                    <feature.icon className="w-5 h-5 text-foreground" />
+                  </div>
+                  <h3 className="font-semibold text-lg">{feature.title}</h3>
+                </div>
+                <ul className="space-y-2">
+                  {feature.items.map((item, j) => (
+                    <li key={j} className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Check className="w-3.5 h-3.5 text-foreground shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
-      <Separator />
+      {/* Quick Start */}
+      <section className="py-20 px-6 border-t">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Up and running in 2 minutes</h2>
+          </div>
+          <div className="rounded-xl border bg-zinc-950 p-6 overflow-x-auto">
+            <div className="flex items-center gap-2 mb-4">
+              <Terminal className="w-4 h-4 text-zinc-400" />
+              <span className="text-xs text-zinc-400 font-mono">terminal</span>
+            </div>
+            <pre className="text-sm text-zinc-300 font-mono leading-relaxed">
+{`pnpm install
+cp .env.example .env
+docker-compose up -d
+pnpm db:migrate
+pnpm dev`}
+            </pre>
+          </div>
+        </div>
+      </section>
 
-      <footer className="py-8 px-6">
-        <p className="text-center text-sm text-muted-foreground">
-          Built with Turborepo, React 19, Express, PostgreSQL, and Better Auth
-        </p>
+      {/* CTA */}
+      <section className="py-20 px-6 border-t">
+        <div className="max-w-2xl mx-auto text-center space-y-6">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Ready to go</h2>
+          <p className="text-muted-foreground text-lg">
+            Clone, configure, and start building.
+          </p>
+          <div className="flex gap-3 justify-center">
+            {isAuthenticated ? (
+              <Button size="lg" asChild>
+                <Link to="/orgs">
+                  Go to Dashboard
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            ) : (
+              <Button size="lg" asChild>
+                <Link to="/signup">
+                  Get Started
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-8 px-6 border-t">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground text-[10px] font-bold">
+              {APP_NAME[0]}
+            </div>
+            <span className="text-sm text-muted-foreground">{APP_NAME}</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Turborepo + React 19 + Express + PostgreSQL + Better Auth
+          </p>
+        </div>
       </footer>
     </div>
   )
