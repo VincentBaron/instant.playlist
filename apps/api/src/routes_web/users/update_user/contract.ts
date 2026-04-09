@@ -3,9 +3,10 @@ import { errorResponseSchema, type ErrorResponse } from '../../../types/errors'
 
 // ===== SCHEMAS =====
 export const userSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   name: z.string().min(1),
   email: z.string().email(),
+  role: z.string(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 })
@@ -13,6 +14,7 @@ export const userSchema = z.object({
 export const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional(),
+  role: z.enum(['user', 'admin', 'super_admin']).optional(),
 })
 
 export const userParamsSchema = z.object({

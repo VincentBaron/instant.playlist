@@ -3,9 +3,10 @@ import { errorResponseSchema, type ErrorResponse } from '../../../types/errors'
 
 // ===== SCHEMAS =====
 export const userSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   name: z.string().min(1),
   email: z.string().email(),
+  role: z.string(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 })

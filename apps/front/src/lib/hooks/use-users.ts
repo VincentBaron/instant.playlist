@@ -61,6 +61,23 @@ export function useCreateUser() {
   })
 }
 
+// Hook for updating a user
+export function useUpdateUser() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, ...input }: { id: string; role?: string }) => {
+      return apiClient(`/web/users/${id}`, {
+        method: 'PATCH',
+        body: input,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: usersKeys.lists() })
+    },
+  })
+}
+
 // Hook for deleting a user
 export function useDeleteUser() {
   const queryClient = useQueryClient()

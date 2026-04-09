@@ -9,6 +9,7 @@ interface UsersListProps {
   hasSearch: boolean
   onDeleteUser: (userId: string) => void
   isDeletingUser: boolean
+  onRoleChange?: (userId: string, role: string) => void
 }
 
 export function UsersList({
@@ -17,6 +18,7 @@ export function UsersList({
   hasSearch,
   onDeleteUser,
   isDeletingUser,
+  onRoleChange,
 }: UsersListProps) {
   if (isLoading) {
     return (
@@ -67,6 +69,7 @@ export function UsersList({
           user={user}
           onDelete={onDeleteUser}
           isDeleting={isDeletingUser}
+          onRoleChange={onRoleChange}
         />
       ))}
     </div>
