@@ -12,7 +12,6 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface Users {
-  clerk_id: string | null;
   created_at: Generated<Timestamp>;
   email: string;
   id: Generated<string>;
@@ -20,6 +19,25 @@ export interface Users {
   updated_at: Generated<Timestamp>;
 }
 
+export interface Member {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: string;
+  created_at: Timestamp;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  logo: string | null;
+  created_at: Timestamp;
+  metadata: string | null;
+}
+
 export interface DB {
   users: Users;
+  member: Member;
+  organization: Organization;
 }

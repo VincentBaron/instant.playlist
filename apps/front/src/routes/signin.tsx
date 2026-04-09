@@ -8,7 +8,6 @@ import { useAuth } from '@/lib/auth-provider'
 import { AuthHeader } from '@/components/auth/auth-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PasswordStrength } from '@/components/ui/password-strength'
 import {
   Card,
   CardContent,
@@ -25,38 +24,31 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 
-export const Route = createFileRoute('/signup')({
+export const Route = createFileRoute('/signin')({
   validateSearch: (
     search: Record<string, unknown>,
   ): { redirect?: string } => ({
     redirect: (search.redirect as string) || undefined,
   }),
-  component: SignUpPage,
+  component: SignInPage,
 })
 
-const signupSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+const signinSchema = z.object({
   email: z.string().email('Please enter a valid email'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least 1 uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least 1 lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least 1 number'),
+  password: z.string().min(1, 'Password is required'),
 })
 
-type SignUpFormValues = z.infer<typeof signupSchema>
+type SignInFormValues = z.infer<typeof signinSchema>
 
-function SignUpPage() {
+function SignInPage() {
   const { redirect } = Route.useSearch()
   const auth = useAuth()
   const navigate = useNavigate()
   const postAuthPath = redirect || '/orgs'
 
-  const form = useForm<SignUpFormValues>({
-    resolver: zodResolver(signupSchema),
+  const form = useForm<SignInFormValues>({
+    resolver: zodResolver(signinSchema),
     defaultValues: {
-      name: '',
       email: '',
       password: '',
     },
@@ -72,15 +64,17 @@ function SignUpPage() {
     return null
   }
 
-  const handleSubmit = async (values: SignUpFormValues) => {
-    const { error } = await authClient.signUp.email({
-      name: values.name,
+  const handleSubmit = async (values: SignInFormValues) => {
+    const { error } = await authClient.signIn.email({
       email: values.email,
       password: values.password,
     })
 
     if (error) {
-      form.setError('root', { message: error.message ?? 'Sign up failed' })
+      form.setError('root', { message: error.message ?? 'Sign in failed' })
+    } else {
+      // Force session refresh so router context updates immediately
+      await authClient.getSession({ query: { disableCookieCache: true } })
     }
   }
 
@@ -89,31 +83,12 @@ function SignUpPage() {
       <AuthHeader />
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Create Account</CardTitle>
-          <CardDescription>Sign up to get started</CardDescription>
+          <CardTitle className="text-2xl">Welcome Back</CardTitle>
+          <CardDescription>Sign in to access your account</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        placeholder="Your name"
-                        autoComplete="name"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <FormField
                 control={form.control}
                 name="email"
@@ -142,31 +117,36 @@ function SignUpPage() {
                     <FormControl>
                       <Input
                         type="password"
-                        placeholder="At least 8 characters"
-                        autoComplete="new-password"
+                        placeholder="Enter your password"
+                        autoComplete="current-password"
                         {...field}
                       />
                     </FormControl>
-                    <PasswordStrength password={field.value ?? ''} />
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <div className="text-right">
+                <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
 
               {form.formState.errors.root && (
                 <p className="text-sm text-destructive">{form.formState.errors.root.message}</p>
               )}
 
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Creating account...' : 'Create account'}
+                {form.formState.isSubmitting ? 'Signing in...' : 'Sign in'}
               </Button>
             </form>
           </Form>
 
           <p className="text-center text-sm text-muted-foreground mt-4">
-            Already have an account?{' '}
-            <Link to="/signin" search={redirect ? { redirect } : undefined} className="text-primary hover:underline font-medium">
-              Sign in
+            Don&apos;t have an account?{' '}
+            <Link to="/signup" search={redirect ? { redirect } : undefined} className="text-primary hover:underline font-medium">
+              Sign up
             </Link>
           </p>
         </CardContent>

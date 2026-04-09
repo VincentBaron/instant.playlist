@@ -26,8 +26,7 @@ export const pinoMiddleware: RequestHandler = pinoHttp({
       user: {
         userId: req.auth?.userId,
         sessionId: req.auth?.sessionId,
-        firstName: req.auth?.firstName,
-        lastName: req.auth?.lastName,
+        name: req.auth?.name,
         email: req.auth?.email,
       },
     }),

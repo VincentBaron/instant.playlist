@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { SignedIn, SignedOut } from '@clerk/clerk-react'
+import { useAuth } from '@/lib/auth-provider'
 import {
   Zap,
   Server,
@@ -22,6 +22,8 @@ import {
 export const Route = createFileRoute('/')({ component: App })
 
 function App() {
+  const { isAuthenticated: isSignedIn } = useAuth()
+
   const stack = [
     {
       icon: <Layers className="w-8 h-8 text-cyan-400" />,
@@ -49,9 +51,9 @@ function App() {
     },
     {
       icon: <Shield className="w-8 h-8 text-cyan-400" />,
-      title: 'Clerk Authentication',
+      title: 'Better Auth',
       description:
-        'Complete auth system with sign-in, sign-up, protected routes, and webhook-based user sync.',
+        'Complete auth system with email/password sign-in, sign-up, protected routes, and cookie-based sessions.',
     },
     {
       icon: <BarChart3 className="w-8 h-8 text-cyan-400" />,
@@ -140,27 +142,29 @@ function App() {
             Production-Ready Full-Stack Monorepo Boilerplate
           </p>
           <p className="text-lg text-gray-400 max-w-3xl mx-auto mb-8">
-            A comprehensive starter template with React 19, Express, PostgreSQL, Clerk authentication,
+            A comprehensive starter template with React 19, Express, PostgreSQL, Better Auth,
             and full observability stack. Everything you need to build modern web applications.
           </p>
 
           <div className="flex flex-col items-center gap-4">
             <div className="flex gap-4 flex-wrap justify-center">
-              <SignedOut>
-                <Link
-                  to="/login"
-                  className="px-8 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-cyan-500/50"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  to="/signup"
-                  className="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
-                >
-                  Create Account
-                </Link>
-              </SignedOut>
-              <SignedIn>
+              {!isSignedIn && (
+                <>
+                  <Link
+                    to="/signin"
+                    className="px-8 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-cyan-500/50"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors border border-slate-600"
+                  >
+                    Create Account
+                  </Link>
+                </>
+              )}
+              {isSignedIn && (
                 <Link
                   to="/users"
                   search={{ page: 1, pageSize: 10, search: '' }}
@@ -169,7 +173,7 @@ function App() {
                   <Users className="w-5 h-5" />
                   Users Demo
                 </Link>
-              </SignedIn>
+              )}
               <a
                 href="https://github.com"
                 target="_blank"
@@ -179,7 +183,7 @@ function App() {
                 View on GitHub
               </a>
             </div>
-            <SignedIn>
+            {isSignedIn ? (
               <p className="text-gray-400 text-sm mt-2">
                 Check out the{' '}
                 <Link
@@ -191,12 +195,11 @@ function App() {
                 </Link>{' '}
                 to see the full-stack architecture in action
               </p>
-            </SignedIn>
-            <SignedOut>
+            ) : (
               <p className="text-gray-400 text-sm mt-2">
                 Sign in to access the protected Users Demo page
               </p>
-            </SignedOut>
+            )}
           </div>
         </div>
       </section>
@@ -293,12 +296,12 @@ function App() {
 ├── apps/
 │   ├── api/                 # Express backend (port 3001)
 │   │   ├── src/
-│   │   │   ├── config/      # Environment & Clerk config
+│   │   │   ├── config/      # Environment & auth config
 │   │   │   ├── db/          # Database, migrations, types
 │   │   │   ├── middlewares/ # Auth, metrics, validation
 │   │   │   ├── routes_web/  # API routes with contracts
 │   │   │   ├── services/    # Business logic
-│   │   │   └── webhook/     # Clerk webhook handlers
+│   │   │   └── auth/        # Better Auth configuration
 │   │   └── package.json
 │   │
 │   └── front/               # React frontend (port 3000)
@@ -306,8 +309,8 @@ function App() {
 │           ├── components/  # UI components, layout, sidebar
 │           ├── routes/      # TanStack Router pages
 │           │   ├── _auth/   # Protected routes (users)
-│           │   ├── login    # Clerk sign-in
-│           │   └── signup   # Clerk sign-up
+│           │   ├── signin   # Sign-in page
+│           │   └── signup   # Sign-up page
 │           └── lib/         # API client, hooks, utils
 │
 ├── packages/
@@ -359,7 +362,7 @@ pnpm dev
       <footer className="py-8 px-6 border-t border-slate-700">
         <div className="max-w-5xl mx-auto text-center text-gray-400 text-sm">
           <p>
-            Built with Turborepo, React, Express, PostgreSQL, and Clerk
+            Built with Turborepo, React, Express, PostgreSQL, and Better Auth
           </p>
         </div>
       </footer>

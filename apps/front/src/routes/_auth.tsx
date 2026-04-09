@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, useNavigate } from '@tanstack/react-router'
-import { useAuth } from '@clerk/clerk-react'
 import { useEffect } from 'react'
 
+import { useAuth } from '@/lib/auth-provider'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/sidebar/AppSidebar'
 import { Separator } from '@/components/ui/separator'
@@ -9,14 +9,13 @@ import { Separator } from '@/components/ui/separator'
 /**
  * Protected layout route
  * All routes under /_auth require authentication
- * Unauthenticated users are redirected to login page
+ * Unauthenticated users are redirected to signin page
  */
 export const Route = createFileRoute('/_auth')({
   beforeLoad: ({ context, location }) => {
-    // Only redirect if we know for sure the user is not authenticated
     if (context.auth?.isAuthenticated === false) {
       throw redirect({
-        to: '/login',
+        to: '/signin',
         search: {
           redirect: location.href,
         },
@@ -27,18 +26,16 @@ export const Route = createFileRoute('/_auth')({
 })
 
 function AuthLayout() {
-  const { isLoaded, isSignedIn } = useAuth()
+  const auth = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Once Clerk loads, verify authentication and redirect if needed
-    if (isLoaded && !isSignedIn) {
-      navigate({ to: '/login' })
+    if (!auth.isLoading && !auth.isAuthenticated) {
+      navigate({ to: '/signin' })
     }
-  }, [isLoaded, isSignedIn, navigate])
+  }, [auth.isLoading, auth.isAuthenticated, navigate])
 
-  // Show loading spinner while auth is loading
-  if (!isLoaded) {
+  if (auth.isLoading) {
     return (
       <div className="flex h-screen bg-background items-center justify-center">
         <div className="text-center">
@@ -49,8 +46,7 @@ function AuthLayout() {
     )
   }
 
-  // Don't render content if not signed in (redirect will happen via useEffect)
-  if (!isSignedIn) {
+  if (!auth.isAuthenticated) {
     return null
   }
 

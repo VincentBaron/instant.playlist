@@ -1,6 +1,6 @@
-import { Link, useRouterState } from '@tanstack/react-router'
-import { UserButton } from '@clerk/clerk-react'
-import { Moon, Sun, Monitor } from 'lucide-react'
+import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
+import { Moon, Sun, Monitor, LogOut, Building2, Settings } from 'lucide-react'
+import { toast } from 'sonner'
 
 import {
   Sidebar,
@@ -17,11 +17,21 @@ import {
 } from '@/components/ui/sidebar'
 import { sidebarNavGroups } from './sidebar-nav'
 import { useTheme } from '@/components/theme-provider'
+import { useAuth } from '@/lib/auth-provider'
+import { APP_NAME } from '@/lib/constants'
+import { authClient } from '@/lib/auth-client'
+import { useOrganizations, useSetActiveOrganization } from '@/lib/hooks/use-organizations'
 
 export function AppSidebar() {
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
   const { theme, setTheme } = useTheme()
+  const auth = useAuth()
+  const navigate = useNavigate()
+  const { data: orgs } = useOrganizations()
+  const setActiveOrg = useSetActiveOrganization()
+
+  const currentOrg = orgs?.find((o) => o.id === auth.orgId)
 
   const toggleTheme = () => {
     if (theme === 'light') {
@@ -39,6 +49,20 @@ export function AppSidebar() {
     return 'System'
   }
 
+  const handleSignOut = async () => {
+    await authClient.signOut()
+    window.location.href = '/signin'
+  }
+
+  const handleSwitchOrg = async (orgId: string) => {
+    try {
+      await setActiveOrg.mutateAsync(orgId)
+      navigate({ to: '/users', search: { page: 1, pageSize: 10 } })
+    } catch {
+      toast.error('Failed to switch organization')
+    }
+  }
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -47,10 +71,10 @@ export function AppSidebar() {
             <SidebarMenuButton size="lg" asChild>
               <Link to="/">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <span className="text-lg font-bold">M</span>
+                  <span className="text-lg font-bold">{APP_NAME[0]}</span>
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Mainstream</span>
+                  <span className="truncate font-semibold">{APP_NAME}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     Dashboard
                   </span>
@@ -62,6 +86,39 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {/* Organization Switcher */}
+        {orgs && orgs.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Organization</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {orgs.map((org) => (
+                  <SidebarMenuItem key={org.id}>
+                    <SidebarMenuButton
+                      isActive={org.id === auth.orgId}
+                      tooltip={org.name}
+                      onClick={() => {
+                        if (org.id !== auth.orgId) handleSwitchOrg(org.id)
+                      }}
+                    >
+                      <Building2 className="h-4 w-4" />
+                      <span>{org.name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Manage organizations">
+                    <Link to="/orgs">
+                      <Settings className="h-4 w-4" />
+                      <span>Manage</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {sidebarNavGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
@@ -97,21 +154,15 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <div className="flex h-12 w-full items-center gap-2 rounded-md p-2 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center">
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: 'size-8',
-                  },
-                }}
-              />
-              <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="truncate font-semibold">Account</span>
+            <SidebarMenuButton onClick={handleSignOut} tooltip="Sign out">
+              <LogOut className="h-4 w-4" />
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold">{auth.user?.name || 'Account'}</span>
                 <span className="truncate text-xs text-muted-foreground">
-                  Manage your account
+                  {auth.user?.email || 'Sign out'}
                 </span>
               </div>
-            </div>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

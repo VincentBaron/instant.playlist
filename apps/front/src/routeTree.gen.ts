@@ -10,13 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
-import { Route as LoginRouteImport } from './routes/login'
+import { Route as SigninRouteImport } from './routes/signin'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OrganizationAcceptInvitationRouteImport } from './routes/organization/accept-invitation'
 import { Route as AuthUsersRouteImport } from './routes/_auth/users'
+import { Route as AuthOrgsIndexRouteImport } from './routes/_auth/orgs/index'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
 import { Route as DemoApiNamesRouteImport } from './routes/demo/api.names'
+import { Route as AuthOrgsOrgIdRouteImport } from './routes/_auth/orgs/$orgId'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
 import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr.spa-mode'
 import { Route as DemoStartSsrFullSsrRouteImport } from './routes/demo/start.ssr.full-ssr'
@@ -27,9 +32,19 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const SigninRoute = SigninRouteImport.update({
+  id: '/signin',
+  path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -41,9 +56,20 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrganizationAcceptInvitationRoute =
+  OrganizationAcceptInvitationRouteImport.update({
+    id: '/organization/accept-invitation',
+    path: '/organization/accept-invitation',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthUsersRoute = AuthUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthOrgsIndexRoute = AuthOrgsIndexRouteImport.update({
+  id: '/orgs/',
+  path: '/orgs/',
   getParentRoute: () => AuthRoute,
 } as any)
 const DemoStartServerFuncsRoute = DemoStartServerFuncsRouteImport.update({
@@ -60,6 +86,11 @@ const DemoApiNamesRoute = DemoApiNamesRouteImport.update({
   id: '/demo/api/names',
   path: '/demo/api/names',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthOrgsOrgIdRoute = AuthOrgsOrgIdRouteImport.update({
+  id: '/orgs/$orgId',
+  path: '/orgs/$orgId',
+  getParentRoute: () => AuthRoute,
 } as any)
 const DemoStartSsrIndexRoute = DemoStartSsrIndexRouteImport.update({
   id: '/demo/start/ssr/',
@@ -84,12 +115,17 @@ const DemoStartSsrDataOnlyRoute = DemoStartSsrDataOnlyRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/login': typeof LoginRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/users': typeof AuthUsersRoute
+  '/organization/accept-invitation': typeof OrganizationAcceptInvitationRoute
+  '/orgs/$orgId': typeof AuthOrgsOrgIdRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/orgs': typeof AuthOrgsIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
@@ -97,12 +133,17 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/login': typeof LoginRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/users': typeof AuthUsersRoute
+  '/organization/accept-invitation': typeof OrganizationAcceptInvitationRoute
+  '/orgs/$orgId': typeof AuthOrgsOrgIdRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/orgs': typeof AuthOrgsIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
@@ -112,12 +153,17 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_auth': typeof AuthRouteWithChildren
-  '/login': typeof LoginRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/_auth/users': typeof AuthUsersRoute
+  '/organization/accept-invitation': typeof OrganizationAcceptInvitationRoute
+  '/_auth/orgs/$orgId': typeof AuthOrgsOrgIdRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
+  '/_auth/orgs/': typeof AuthOrgsIndexRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
@@ -127,12 +173,17 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/login'
+    | '/forgot-password'
+    | '/reset-password'
+    | '/signin'
     | '/signup'
     | '/users'
+    | '/organization/accept-invitation'
+    | '/orgs/$orgId'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/orgs'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
@@ -140,12 +191,17 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/login'
+    | '/forgot-password'
+    | '/reset-password'
+    | '/signin'
     | '/signup'
     | '/users'
+    | '/organization/accept-invitation'
+    | '/orgs/$orgId'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/orgs'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
@@ -154,12 +210,17 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_auth'
-    | '/login'
+    | '/forgot-password'
+    | '/reset-password'
+    | '/signin'
     | '/signup'
     | '/_auth/users'
+    | '/organization/accept-invitation'
+    | '/_auth/orgs/$orgId'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
+    | '/_auth/orgs/'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
@@ -169,8 +230,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRouteWithChildren
-  LoginRoute: typeof LoginRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  SigninRoute: typeof SigninRoute
   SignupRoute: typeof SignupRoute
+  OrganizationAcceptInvitationRoute: typeof OrganizationAcceptInvitationRoute
   DemoApiNamesRoute: typeof DemoApiNamesRoute
   DemoStartApiRequestRoute: typeof DemoStartApiRequestRoute
   DemoStartServerFuncsRoute: typeof DemoStartServerFuncsRoute
@@ -189,11 +253,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/signin': {
+      id: '/signin'
+      path: '/signin'
+      fullPath: '/signin'
+      preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_auth': {
@@ -210,11 +288,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/organization/accept-invitation': {
+      id: '/organization/accept-invitation'
+      path: '/organization/accept-invitation'
+      fullPath: '/organization/accept-invitation'
+      preLoaderRoute: typeof OrganizationAcceptInvitationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_auth/users': {
       id: '/_auth/users'
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof AuthUsersRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/orgs/': {
+      id: '/_auth/orgs/'
+      path: '/orgs'
+      fullPath: '/orgs'
+      preLoaderRoute: typeof AuthOrgsIndexRouteImport
       parentRoute: typeof AuthRoute
     }
     '/demo/start/server-funcs': {
@@ -237,6 +329,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/demo/api/names'
       preLoaderRoute: typeof DemoApiNamesRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_auth/orgs/$orgId': {
+      id: '/_auth/orgs/$orgId'
+      path: '/orgs/$orgId'
+      fullPath: '/orgs/$orgId'
+      preLoaderRoute: typeof AuthOrgsOrgIdRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/demo/start/ssr/': {
       id: '/demo/start/ssr/'
@@ -271,10 +370,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthRouteChildren {
   AuthUsersRoute: typeof AuthUsersRoute
+  AuthOrgsOrgIdRoute: typeof AuthOrgsOrgIdRoute
+  AuthOrgsIndexRoute: typeof AuthOrgsIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthUsersRoute: AuthUsersRoute,
+  AuthOrgsOrgIdRoute: AuthOrgsOrgIdRoute,
+  AuthOrgsIndexRoute: AuthOrgsIndexRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
@@ -282,8 +385,11 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
-  LoginRoute: LoginRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  SigninRoute: SigninRoute,
   SignupRoute: SignupRoute,
+  OrganizationAcceptInvitationRoute: OrganizationAcceptInvitationRoute,
   DemoApiNamesRoute: DemoApiNamesRoute,
   DemoStartApiRequestRoute: DemoStartApiRequestRoute,
   DemoStartServerFuncsRoute: DemoStartServerFuncsRoute,

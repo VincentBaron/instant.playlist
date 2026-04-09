@@ -4,7 +4,7 @@ import { logger } from '@repo/logger'
 /**
  * Middleware to require authentication
  * Returns 401 if user is not authenticated
- * Must be used after clerkAuthMiddleware and populateAuthMiddleware
+ * Must be used after betterAuthMiddleware
  */
 export const requireAuth: RequestHandler = (req, res, next) => {
   if (!req.auth || !req.auth.userId) {
@@ -29,9 +29,7 @@ export const requireAuth: RequestHandler = (req, res, next) => {
 /**
  * Middleware for optional authentication
  * Allows the request to proceed whether authenticated or not
- * Useful for routes that work for both authenticated and guest users
  */
 export const optionalAuth: RequestHandler = (_req, _res, next) => {
-  // Simply pass through - auth will be populated if user is authenticated
   next()
 }

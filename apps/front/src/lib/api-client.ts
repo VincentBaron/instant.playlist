@@ -1,10 +1,8 @@
 /**
  * API client for making requests to the Express backend.
  *
- * Can be used both server-side (in TanStack Router loaders) and client-side (in React components).
- *
- * The API URL is configured via the VITE_API_URL environment variable.
- * Make sure the API has CORS enabled if calling from the client side.
+ * Uses cookie-based authentication via Better Auth.
+ * Cookies are sent automatically with credentials: 'include'.
  */
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3030'
@@ -13,7 +11,6 @@ interface ApiClientOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   headers?: Record<string, string>
-  token?: string | null // Clerk session token
 }
 
 /**
@@ -22,40 +19,22 @@ interface ApiClientOptions {
  * @param path - API endpoint path (e.g., '/web/users')
  * @param options - Request options (method, body, headers)
  * @returns Promise with the parsed response
- *
- * @example
- * ```ts
- * // In a route loader:
- * export const Route = createFileRoute('/users')({
- *   loader: async () => {
- *     const data = await apiClient<UserListResponse>('/web/users')
- *     return data
- *   }
- * })
- * ```
  */
 export async function apiClient<T>(
   path: string,
   options: ApiClientOptions = {}
 ): Promise<T> {
-  const { method = 'GET', body, headers = {}, token } = options
+  const { method = 'GET', body, headers = {} } = options
 
   const url = `${API_URL}${path}`
 
   const fetchOptions: RequestInit = {
     method,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...headers,
     },
-  }
-
-  // Add Clerk authentication token if provided
-  if (token) {
-    fetchOptions.headers = {
-      ...fetchOptions.headers,
-      Authorization: `Bearer ${token}`,
-    }
   }
 
   if (body) {
@@ -65,9 +44,6 @@ export async function apiClient<T>(
   const response = await fetch(url, fetchOptions)
 
   if (!response.ok) {
-    const errorText = await response.text()
-
-    // Handle authentication errors specifically
     if (response.status === 401) {
       throw new Error('Authentication required. Please sign in.')
     }
@@ -76,9 +52,17 @@ export async function apiClient<T>(
       throw new Error('Access denied. You do not have permission to perform this action.')
     }
 
-    throw new Error(
-      `API request failed: ${response.status} ${response.statusText}\n${errorText}`
-    )
+    // Try to extract a meaningful error message from the response
+    let errorMessage = `API request failed: ${response.status} ${response.statusText}`
+    try {
+      const errorBody = await response.json()
+      if (errorBody.message) errorMessage = errorBody.message
+      else if (errorBody.error) errorMessage = errorBody.error
+    } catch {
+      // Response is not JSON — use the default message
+    }
+
+    throw new Error(errorMessage)
   }
 
   // Handle empty responses (e.g., 204 No Content)
@@ -92,12 +76,6 @@ export async function apiClient<T>(
 
 /**
  * Helper function to build query strings from objects
- *
- * @example
- * ```ts
- * const query = buildQuery({ page: 1, pageSize: 10, search: 'john' })
- * // Returns: "?page=1&pageSize=10&search=john"
- * ```
  */
 export function buildQuery(params: Record<string, string | number | boolean | undefined>): string {
   const searchParams = new URLSearchParams()

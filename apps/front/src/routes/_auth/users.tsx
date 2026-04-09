@@ -27,7 +27,7 @@ import {
  * 4. Supports search parameters (e.g., /users?page=2&search=john)
  * 5. Uses feature-based component architecture
  *
- * Note: We don't prefetch on the server because authentication requires client-side Clerk tokens.
+ * Note: We don't prefetch on the server because authentication requires client-side sessions.
  * All data fetching happens client-side with proper auth headers.
  */
 export const Route = createFileRoute('/_auth/users')({

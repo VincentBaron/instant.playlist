@@ -1,7 +1,5 @@
-import 'express-session'
-
-declare global {    
-    /* eslint-disable no-unused-vars */
+declare global {
+  /* eslint-disable no-unused-vars */
   namespace Express {
     /* eslint-disable no-unused-vars */
     interface Request {
@@ -9,13 +7,14 @@ declare global {
         userId: string
         sessionId: string
         email: string
-        firstName: string
-        lastName: string
-        clerkId: string
-        token: string
+        name: string
+        image: string
+        role: string
+        orgId: string
+        orgRole: string
       }
-      rawBody: Buffer
-      metadata: {
+      rawBody?: Buffer
+      metadata?: {
         ipAddress: string
         userAgent: string
         requestId: string
@@ -23,16 +22,10 @@ declare global {
       }
     }
     interface Response {
-      responseTime: number
+      responseTime?: number
     }
     /* eslint-enable no-unused-vars */
   }
 }
 
-export interface AuthUser {
-  userId: string
-  sessionId: string
-}
-
-// Ensure this file is treated as a module
 export {}

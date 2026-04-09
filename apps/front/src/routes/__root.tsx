@@ -2,19 +2,14 @@ import { HeadContent, Scripts, createRootRouteWithContext, Outlet } from '@tanst
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import type { QueryClient } from '@tanstack/react-query'
-import { ClerkProvider } from '@clerk/clerk-react'
 
+import { AuthProvider } from '../lib/auth-provider'
 import { ThemeProvider } from '../components/theme-provider'
 import { Toaster } from '../components/ui/sonner'
 import { NotFound } from '../components/NotFound'
+import { APP_NAME } from '../lib/constants'
 
 import appCss from '../styles.css?url'
-
-const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
-
-if (!CLERK_PUBLISHABLE_KEY) {
-  throw new Error('Missing Clerk Publishable Key')
-}
 
 export interface RouterContext {
   queryClient: QueryClient
@@ -22,6 +17,10 @@ export interface RouterContext {
     | {
         isAuthenticated: boolean
         userId: string | undefined
+        orgId: string | undefined
+        orgSlug: string | undefined
+        orgRole: string | undefined
+        role: string | undefined
       }
     | undefined // undefined when auth is still loading
 }
@@ -37,7 +36,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'boilerplate',
+        title: APP_NAME,
       },
     ],
     links: [
@@ -55,7 +54,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootComponent() {
   return (
-    <>
+    <AuthProvider>
       <Outlet />
       <Toaster />
       <TanStackDevtools
@@ -69,24 +68,22 @@ function RootComponent() {
           },
         ]}
       />
-    </>
+    </AuthProvider>
   )
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-      <html lang="en" suppressHydrationWarning>
-        <head>
-          <HeadContent />
-        </head>
-        <body>
-          <ThemeProvider defaultTheme="system" storageKey="mainstream-theme">
-            {children}
-          </ThemeProvider>
-          <Scripts />
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <ThemeProvider defaultTheme="system" storageKey="app-theme">
+          {children}
+        </ThemeProvider>
+        <Scripts />
+      </body>
+    </html>
   )
 }
