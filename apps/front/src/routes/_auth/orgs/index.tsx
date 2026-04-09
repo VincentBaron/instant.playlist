@@ -7,7 +7,7 @@ import {
   useSetActiveOrganization,
   getLastActiveOrgId,
 } from '@/lib/hooks/use-organizations'
-import { useAuth, isSuperAdmin } from '@/lib/auth-provider'
+import { useAuth } from '@/lib/auth-provider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -30,11 +30,11 @@ export const Route = createFileRoute('/_auth/orgs/')({
 
 function OrgsListPage() {
   const navigate = useNavigate()
-  const { orgId, role } = useAuth()
+  const { orgId } = useAuth()
   const { data: orgs, isLoading, error } = useOrganizations()
   const setActiveOrg = useSetActiveOrganization()
   const createOrg = useCreateOrganization()
-  const canCreateOrg = isSuperAdmin(role)
+  const canCreateOrg = true
   const [showCreate, setShowCreate] = useState(false)
   const [newOrgName, setNewOrgName] = useState('')
   const [newOrgSlug, setNewOrgSlug] = useState('')

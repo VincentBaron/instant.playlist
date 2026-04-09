@@ -11,6 +11,73 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
+export interface Account {
+  access_token: string | null;
+  access_token_expires_at: Timestamp | null;
+  account_id: string;
+  created_at: Generated<Timestamp>;
+  id: string;
+  id_token: string | null;
+  password: string | null;
+  provider_id: string;
+  refresh_token: string | null;
+  refresh_token_expires_at: Timestamp | null;
+  scope: string | null;
+  updated_at: Timestamp;
+  user_id: string;
+}
+
+export interface Invitation {
+  created_at: Generated<Timestamp>;
+  email: string;
+  expires_at: Timestamp;
+  id: string;
+  inviter_id: string;
+  organization_id: string;
+  role: string | null;
+  status: string;
+}
+
+export interface Member {
+  created_at: Generated<Timestamp>;
+  id: string;
+  organization_id: string;
+  role: string;
+  user_id: string;
+}
+
+export interface Organization {
+  created_at: Generated<Timestamp>;
+  id: string;
+  logo: string | null;
+  metadata: string | null;
+  name: string;
+  slug: string;
+}
+
+export interface Session {
+  active_organization_id: string | null;
+  created_at: Generated<Timestamp>;
+  expires_at: Timestamp;
+  id: string;
+  ip_address: string | null;
+  token: string;
+  updated_at: Timestamp;
+  user_agent: string | null;
+  user_id: string;
+}
+
+export interface User {
+  created_at: Generated<Timestamp>;
+  email: string;
+  email_verified: boolean;
+  id: string;
+  image: string | null;
+  name: string;
+  role: Generated<string>;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface Users {
   created_at: Generated<Timestamp>;
   email: string;
@@ -19,25 +86,22 @@ export interface Users {
   updated_at: Generated<Timestamp>;
 }
 
-export interface Member {
+export interface Verification {
+  created_at: Generated<Timestamp>;
+  expires_at: Timestamp;
   id: string;
-  organization_id: string;
-  user_id: string;
-  role: string;
-  created_at: Timestamp;
-}
-
-export interface Organization {
-  id: string;
-  name: string;
-  slug: string;
-  logo: string | null;
-  created_at: Timestamp;
-  metadata: string | null;
+  identifier: string;
+  updated_at: Generated<Timestamp>;
+  value: string;
 }
 
 export interface DB {
-  users: Users;
+  account: Account;
+  invitation: Invitation;
   member: Member;
   organization: Organization;
+  session: Session;
+  user: User;
+  users: Users;
+  verification: Verification;
 }

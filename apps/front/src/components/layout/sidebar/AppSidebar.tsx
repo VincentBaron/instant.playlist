@@ -1,6 +1,5 @@
-import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
-import { Moon, Sun, Monitor, LogOut, Building2, Settings } from 'lucide-react'
-import { toast } from 'sonner'
+import { Link, useRouterState } from '@tanstack/react-router'
+import { Moon, Sun, Monitor } from 'lucide-react'
 
 import {
   Sidebar,
@@ -14,70 +13,78 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { sidebarNavGroups } from './sidebar-nav'
+import { UserMenu } from './UserMenu'
 import { useTheme } from '@/components/theme-provider'
-import { useAuth } from '@/lib/auth-provider'
 import { APP_NAME } from '@/lib/constants'
-import { authClient } from '@/lib/auth-client'
-import { useOrganizations, useSetActiveOrganization } from '@/lib/hooks/use-organizations'
 
-export function AppSidebar() {
-  const routerState = useRouterState()
-  const currentPath = routerState.location.pathname
+function ThemeToggle() {
   const { theme, setTheme } = useTheme()
-  const auth = useAuth()
-  const navigate = useNavigate()
-  const { data: orgs } = useOrganizations()
-  const setActiveOrg = useSetActiveOrganization()
-
-  const currentOrg = orgs?.find((o) => o.id === auth.orgId)
 
   const toggleTheme = () => {
-    if (theme === 'light') {
-      setTheme('dark')
-    } else if (theme === 'dark') {
-      setTheme('system')
-    } else {
-      setTheme('light')
-    }
+    if (theme === 'light') setTheme('dark')
+    else if (theme === 'dark') setTheme('system')
+    else setTheme('light')
   }
 
-  const getThemeLabel = () => {
+  const getIcon = () => {
+    if (theme === 'light') return <Sun className="h-4 w-4" />
+    if (theme === 'dark') return <Moon className="h-4 w-4" />
+    return <Monitor className="h-4 w-4" />
+  }
+
+  const getLabel = () => {
     if (theme === 'light') return 'Light'
     if (theme === 'dark') return 'Dark'
     return 'System'
   }
 
-  const handleSignOut = async () => {
-    await authClient.signOut()
-    window.location.href = '/signin'
-  }
+  return (
+    <SidebarMenuButton onClick={toggleTheme} tooltip={`Theme: ${getLabel()}`}>
+      {getIcon()}
+      <span>{getLabel()}</span>
+    </SidebarMenuButton>
+  )
+}
 
-  const handleSwitchOrg = async (orgId: string) => {
-    try {
-      await setActiveOrg.mutateAsync(orgId)
-      navigate({ to: '/users', search: { page: 1, pageSize: 10 } })
-    } catch {
-      toast.error('Failed to switch organization')
-    }
-  }
+function SidebarWrapper({ children }: { children: React.ReactNode }) {
+  const { state } = useSidebar()
+  const isMobile = useIsMobile()
+
+  const width = isMobile
+    ? undefined
+    : `var(${state === 'expanded' ? '--sidebar-width' : '--sidebar-width-icon'})`
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar
+      collapsible="icon"
+      className="border-r-0"
+      style={{ width, minWidth: width, maxWidth: width }}
+    >
+      {children}
+    </Sidebar>
+  )
+}
+
+export function AppSidebar() {
+  const routerState = useRouterState()
+  const currentPath = routerState.location.pathname
+
+  return (
+    <SidebarWrapper>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton size="lg" asChild tooltip="Home">
               <Link to="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <span className="text-lg font-bold">{APP_NAME[0]}</span>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <span className="text-sm font-bold">{APP_NAME[0]}</span>
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
+                <div className="grid text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="truncate font-semibold">{APP_NAME}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    Dashboard
-                  </span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -86,39 +93,6 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Organization Switcher */}
-        {orgs && orgs.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Organization</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {orgs.map((org) => (
-                  <SidebarMenuItem key={org.id}>
-                    <SidebarMenuButton
-                      isActive={org.id === auth.orgId}
-                      tooltip={org.name}
-                      onClick={() => {
-                        if (org.id !== auth.orgId) handleSwitchOrg(org.id)
-                      }}
-                    >
-                      <Building2 className="h-4 w-4" />
-                      <span>{org.name}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Manage organizations">
-                    <Link to="/orgs">
-                      <Settings className="h-4 w-4" />
-                      <span>Manage</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
         {sidebarNavGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
@@ -146,28 +120,15 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={toggleTheme} tooltip={`Theme: ${getThemeLabel()}`}>
-              {theme === 'light' && <Sun className="h-4 w-4" />}
-              {theme === 'dark' && <Moon className="h-4 w-4" />}
-              {theme === 'system' && <Monitor className="h-4 w-4" />}
-              <span>{getThemeLabel()}</span>
-            </SidebarMenuButton>
+            <ThemeToggle />
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={handleSignOut} tooltip="Sign out">
-              <LogOut className="h-4 w-4" />
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{auth.user?.name || 'Account'}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {auth.user?.email || 'Sign out'}
-                </span>
-              </div>
-            </SidebarMenuButton>
+            <UserMenu />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
 
       <SidebarRail />
-    </Sidebar>
+    </SidebarWrapper>
   )
 }

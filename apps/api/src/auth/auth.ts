@@ -67,7 +67,7 @@ export const auth = betterAuth({
     additionalFields: {
       role: {
         type: 'string',
-        defaultValue: 'user',
+        defaultValue: SERVER_CONFIG.nodeEnv === 'development' ? USER_ROLES.SUPER_ADMIN : USER_ROLES.USER,
         input: false,
       },
     },
@@ -117,9 +117,7 @@ export const auth = betterAuth({
 
   plugins: [
     organization({
-      allowUserToCreateOrganization: (user) => {
-        return (user as any).role === USER_ROLES.SUPER_ADMIN
-      },
+      allowUserToCreateOrganization: true,
       creatorRole: 'admin',
       schema: {
         session: {
