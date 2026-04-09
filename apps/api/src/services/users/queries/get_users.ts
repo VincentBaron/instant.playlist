@@ -15,7 +15,7 @@ export async function getUsersQuery(
   const { page, pageSize, search } = query
 
   // Build base query
-  let baseQuery = db.selectFrom('users')
+  let baseQuery = db.selectFrom('user')
 
   // Apply search filter if provided
   if (search) {

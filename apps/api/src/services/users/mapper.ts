@@ -6,6 +6,7 @@ export function mapDbUserToUser(dbUser: DbUser): User {
     id: dbUser.id,
     name: dbUser.name,
     email: dbUser.email,
+    role: dbUser.role,
     createdAt: dbUser.created_at.toISOString(),
     updatedAt: dbUser.updated_at.toISOString(),
   }

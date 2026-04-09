@@ -10,7 +10,7 @@ export async function updateUserQuery(
 
   // Check if user exists
   const existingUser = await db
-    .selectFrom('users')
+    .selectFrom('user')
     .selectAll()
     .where('id', '=', id)
     .executeTakeFirst()
@@ -21,10 +21,11 @@ export async function updateUserQuery(
 
   // Update user
   const updatedUser = await db
-    .updateTable('users')
+    .updateTable('user')
     .set({
       ...(input.name && { name: input.name }),
       ...(input.email && { email: input.email }),
+      ...(input.role && { role: input.role }),
       updated_at: new Date(),
     })
     .where('id', '=', id)

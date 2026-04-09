@@ -6,16 +6,17 @@ import {
   useUsers,
   useCreateUser,
   useDeleteUser,
+  useUpdateUser,
   type UsersSearchParams,
-} from '../../lib/hooks/use-users'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
+} from '@/lib/hooks/use-users'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   UserSearchForm,
   CreateUserDialog,
   DeleteUserDialog,
   UsersList,
   UsersPagination,
-} from '../../components/features/users'
+} from '@/components/features/users'
 
 /**
  * Example route demonstrating TanStack Query with authenticated API calls
@@ -30,7 +31,7 @@ import {
  * Note: We don't prefetch on the server because authentication requires client-side sessions.
  * All data fetching happens client-side with proper auth headers.
  */
-export const Route = createFileRoute('/_auth/users')({
+export const Route = createFileRoute('/_admin/admin/users')({
   // Validate search parameters
   validateSearch: (search: Record<string, unknown>): UsersSearchParams => {
     return {
@@ -54,6 +55,7 @@ function UsersPage() {
   const { data, isLoading, error } = useUsers(search)
   const createUserMutation = useCreateUser()
   const deleteUserMutation = useDeleteUser()
+  const updateUserMutation = useUpdateUser()
 
   const handlePageChange = (newPage: number) => {
     navigate({
@@ -106,10 +108,19 @@ function UsersPage() {
     }
   }
 
+  const handleRoleChange = async (userId: string, role: string) => {
+    try {
+      await updateUserMutation.mutateAsync({ id: userId, role })
+      toast.success('Role updated')
+    } catch {
+      toast.error('Failed to update role')
+    }
+  }
+
   // Handle loading and error states
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto">
+      <div>
         <Card className="border-destructive bg-destructive/10">
           <CardHeader>
             <CardTitle className="text-destructive">Error Loading Users</CardTitle>
@@ -121,7 +132,7 @@ function UsersPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold mb-2">Users Directory</h1>
@@ -152,6 +163,7 @@ function UsersPage() {
         hasSearch={!!search.search}
         onDeleteUser={setUserToDelete}
         isDeletingUser={deleteUserMutation.isPending}
+        onRoleChange={handleRoleChange}
       />
 
       {/* Pagination */}
@@ -164,24 +176,6 @@ function UsersPage() {
           onPageChange={handlePageChange}
         />
       )}
-
-      {/* Info Box */}
-      <Card className="border-muted">
-        <CardHeader>
-          <CardTitle>TanStack Query + shadcn/ui Architecture</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-1 text-sm text-muted-foreground">
-            <li>✓ TanStack Query manages client-side state</li>
-            <li>✓ Automatic caching and background refetching</li>
-            <li>✓ shadcn/ui components for consistent design</li>
-            <li>✓ Feature-based component architecture</li>
-            <li>✓ Type-safe hooks with full TypeScript support</li>
-            <li>✓ Complete CRUD operations (GET, POST, DELETE)</li>
-            <li>✓ Toast notifications with Sonner</li>
-          </ul>
-        </CardContent>
-      </Card>
 
       {/* Delete Confirmation Dialog */}
       <DeleteUserDialog

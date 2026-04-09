@@ -3,7 +3,7 @@ import { getDatabase } from '../../../db/database'
 export async function deleteUserQuery(id: string): Promise<boolean> {
   const db = getDatabase()
   const result = await db
-    .deleteFrom('users')
+    .deleteFrom('user')
     .where('id', '=', id)
     .executeTakeFirst()
 

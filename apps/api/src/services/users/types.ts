@@ -2,6 +2,7 @@ export type User = {
   id: string
   name: string
   email: string
+  role: string
   createdAt: string
   updatedAt: string
 }
@@ -14,13 +15,17 @@ export type CreateUserInput = {
 export type UpdateUserInput = {
   name?: string
   email?: string
+  role?: string
 }
 
-// Database result type
+// Database result type (matches Better Auth 'user' table)
 export type DbUser = {
   id: string
   name: string
   email: string
+  email_verified: boolean
+  image: string | null
+  role: string
   created_at: Date
   updated_at: Date
 }
