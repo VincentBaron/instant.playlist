@@ -8,6 +8,9 @@ import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 
 const config = defineConfig({
+  server: {
+    port: parseInt(process.env.PORT || '3000'),
+  },
   build: {
     outDir: 'dist',
   },

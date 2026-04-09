@@ -320,7 +320,7 @@ function App() {
 │   ├── typescript-config/   # Shared TS configs
 │   └── jest-presets/        # Test configurations
 │
-└── docker-compose.yml       # PostgreSQL, Redis, Qdrant,
+└── docker-compose.yml       # PostgreSQL, Redis,
                              # Prometheus, Grafana, Loki`}
           </pre>
         </div>

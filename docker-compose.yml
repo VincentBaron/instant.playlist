@@ -7,7 +7,7 @@ services:
   #     dockerfile: ./apps/front/Dockerfile
   #   restart: always
   #   ports:
-  #     - 3000:3000
+  #     - "${FRONT_PORT}:3000"
   #   networks:
   #     - app_network
 
@@ -17,7 +17,7 @@ services:
   #     dockerfile: ./apps/api/Dockerfile
   #   restart: always
   #   ports:
-  #     - 3001:3001
+  #     - "${API_PORT}:3001"
   #   networks:
   #     - app_network
 
@@ -35,26 +35,6 @@ services:
     networks:
       - app_network
 
-  qdrant:
-    image: qdrant/qdrant:latest
-    restart: always
-    environment:
-      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY}
-    ports:
-      - "${QDRANT_PORT}:6333"
-      - "${QDRANT_MANAGEMENT_PORT}:6334"
-    expose:
-      - "${QDRANT_PORT}"
-      - "${QDRANT_MANAGEMENT_PORT}"
-      - "${QDRANT_API_PORT}"
-    configs:
-      - source: qdrant_config
-        target: /qdrant/config/production.yaml
-    volumes:
-      - qdrant_data:/qdrant/storage
-    networks:
-      - app_network
-
   redis:
     image: redis/redis-stack-server:7.2.0-v17
     ports:
@@ -65,9 +45,6 @@ services:
       - redis-server
       - --requirepass
       - ${REDISPASSWORD}
-      - --user
-      - default
-      - off
       - --user
       - ${REDISUSER}
       - on
@@ -94,7 +71,7 @@ services:
   loki:
     image: grafana/loki:latest
     ports:
-      - "3101:3100"
+      - "${LOKI_PORT}:3100"
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - app_network
@@ -102,7 +79,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     ports:
-      - "9091:9090"
+      - "${PROMETHEUS_PORT}:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
@@ -118,7 +95,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "3201:3000"
+      - "${GRAFANA_PORT}:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     user: "472"
@@ -133,15 +110,9 @@ services:
 
 volumes:
   postgres_data:
-  qdrant_data:
   redis_data:
   grafana-data:
   prometheus-data:
-
-configs:
-  qdrant_config:
-    content: |
-      log_level: INFO
 
 networks:
   app_network:

@@ -10,7 +10,7 @@ A production-ready, full-stack monorepo boilerplate for building modern web appl
 - **PostgreSQL + Kysely** - Type-safe SQL with auto-generated types
 - **Clerk Authentication** - Complete auth with protected routes and webhooks
 - **Full Observability** - Prometheus, Grafana, Loki, structured logging
-- **Docker Infrastructure** - PostgreSQL, Redis, Qdrant, monitoring stack
+- **Docker Infrastructure** - PostgreSQL, Redis, monitoring stack
 - **Shadcn/ui + Tailwind** - Beautiful UI with dark/light theme support
 
 ## Quick Start
@@ -332,7 +332,6 @@ Pre-configured dashboards available at http://localhost:3201:
 |---------|------|-------------|
 | PostgreSQL | 5432 | Primary database |
 | Redis Stack | 6379 | Caching, sessions, JSON support |
-| Qdrant | 6333-6335 | Vector database for embeddings |
 | Prometheus | 9091 | Metrics collection |
 | Grafana | 3201 | Dashboards and visualization |
 | Loki | 3101 | Log aggregation |
@@ -401,10 +400,6 @@ PGDATABASE=boilerplate
 REDISUSER=default
 REDISPASSWORD=redis_password
 
-# Qdrant
-QDRANT_API_KEY=your_api_key
-QDRANT_PORT=6333
-
 # Clerk Authentication
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
@@ -447,7 +442,6 @@ NODE_ENV=development
 | Grafana | Visualization |
 | Loki | Log aggregation |
 | Redis Stack | Caching |
-| Qdrant | Vector database |
 
 ## Customization
 

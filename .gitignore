@@ -40,6 +40,4 @@ yarn-error.log*
 *.pem
 _temp
 
-
-# Qdrant
-qdrant_data/
+.claude
