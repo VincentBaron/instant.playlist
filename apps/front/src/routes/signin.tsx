@@ -79,7 +79,7 @@ function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex flex-col items-center justify-center p-8">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
       <AuthHeader />
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">

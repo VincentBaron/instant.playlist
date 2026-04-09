@@ -21,7 +21,7 @@ export function UserCard({ user, onDelete, isDeleting }: UserCardProps) {
                 {user.id}
               </Badge>
             </div>
-            <CardDescription className="text-blue-400">{user.email}</CardDescription>
+            <CardDescription>{user.email}</CardDescription>
           </div>
           <Button
             variant="destructive"

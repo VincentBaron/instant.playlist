@@ -55,7 +55,7 @@ function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex flex-col items-center justify-center p-8">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
       <AuthHeader />
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
@@ -65,7 +65,7 @@ function ForgotPasswordPage() {
         <CardContent>
           {isSuccess ? (
             <div className="text-center space-y-4">
-              <p className="text-green-400 font-medium">Check your inbox</p>
+              <p className="font-medium">Check your inbox</p>
               <p className="text-sm text-muted-foreground">
                 If an account exists with this email, you will receive a reset link.
               </p>

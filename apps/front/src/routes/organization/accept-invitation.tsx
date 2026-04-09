@@ -4,6 +4,7 @@ import { authClient } from '@/lib/auth-client'
 import { useAuth } from '@/lib/auth-provider'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
 
 export const Route = createFileRoute('/organization/accept-invitation')({
   component: AcceptInvitationPage,
@@ -60,12 +61,12 @@ function AcceptInvitationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-8">
+    <div className="min-h-screen bg-background flex items-center justify-center p-8">
       <Card className="w-full max-w-md">
         <CardContent className="pt-6 text-center">
           {status === 'loading' && (
             <>
-              <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
               <h2 className="text-xl font-semibold mb-2">Accepting invitation...</h2>
               <p className="text-muted-foreground">Please wait while we process your invitation.</p>
             </>
@@ -73,11 +74,7 @@ function AcceptInvitationPage() {
 
           {status === 'success' && (
             <>
-              <div className="h-12 w-12 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
+              <CheckCircle className="h-12 w-12 mx-auto mb-4 text-primary" />
               <h2 className="text-xl font-semibold mb-2">Invitation accepted!</h2>
               <p className="text-muted-foreground">Redirecting you to your organizations...</p>
             </>
@@ -85,11 +82,7 @@ function AcceptInvitationPage() {
 
           {status === 'error' && (
             <>
-              <div className="h-12 w-12 bg-destructive/20 text-destructive rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
+              <XCircle className="h-12 w-12 mx-auto mb-4 text-destructive" />
               <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
               <p className="text-muted-foreground mb-4">{error}</p>
               <Button onClick={() => navigate({ to: '/orgs' })}>
