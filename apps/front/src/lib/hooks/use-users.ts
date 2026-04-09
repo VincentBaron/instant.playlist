@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, queryOptions } from '@tanstack/react-query'
 import { useAuth } from '../auth-provider'
 import { apiClient, buildQuery } from '../api-client'
 import type { UserListResponse } from '@repo/api/routes_web/users/get_users/contract'
@@ -10,7 +10,7 @@ export type UsersSearchParams = {
   search?: string
 }
 
-// Query keys factory for better organization and type safety
+// Query keys factory
 export const usersKeys = {
   all: ['users'] as const,
   lists: () => [...usersKeys.all, 'list'] as const,
@@ -19,28 +19,28 @@ export const usersKeys = {
   detail: (id: string) => [...usersKeys.details(), id] as const,
 }
 
-// Query function for fetching users
-export async function fetchUsers(
-  params: UsersSearchParams,
-): Promise<UserListResponse> {
-  const query = buildQuery({
-    page: params.page,
-    pageSize: params.pageSize,
-    search: params.search,
+// Query options — reusable in both hooks and route loaders
+export const usersListOptions = (params: UsersSearchParams) =>
+  queryOptions({
+    queryKey: usersKeys.list(params),
+    queryFn: async () => {
+      const query = buildQuery({
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+      })
+      return apiClient<UserListResponse>(`/web/users${query}`)
+    },
+    staleTime: 30 * 1000,
   })
 
-  return apiClient<UserListResponse>(`/web/users${query}`)
-}
-
-// Hook for querying users (client-side)
+// Hook for querying users
 export function useUsers(params: UsersSearchParams) {
   const { isLoading, isAuthenticated } = useAuth()
 
   return useQuery({
-    queryKey: usersKeys.list(params),
-    queryFn: () => fetchUsers(params),
+    ...usersListOptions(params),
     enabled: !isLoading && isAuthenticated,
-    staleTime: 30 * 1000,
   })
 }
 

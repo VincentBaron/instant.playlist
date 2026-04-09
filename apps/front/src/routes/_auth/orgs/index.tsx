@@ -6,7 +6,9 @@ import {
   useCreateOrganization,
   useSetActiveOrganization,
   getLastActiveOrgId,
+  organizationsListOptions,
 } from '@/lib/hooks/use-organizations'
+import { prefetch } from '@/lib/query-client'
 import { useAuth } from '@/lib/auth-provider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -25,6 +27,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export const Route = createFileRoute('/_auth/orgs/')({
+  loader: async ({ context: { queryClient } }) => {
+    await prefetch(queryClient, organizationsListOptions())
+  },
   component: OrgsListPage,
 })
 

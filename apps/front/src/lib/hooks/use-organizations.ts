@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, queryOptions } from '@tanstack/react-query'
 import { authClient } from '../auth-client'
 
 export interface Organization {
@@ -15,8 +15,9 @@ export const organizationsKeys = {
   list: () => [...organizationsKeys.all, 'list'] as const,
 }
 
-export function useOrganizations() {
-  return useQuery({
+// Query options — reusable in both hooks and route loaders
+export const organizationsListOptions = () =>
+  queryOptions({
     queryKey: organizationsKeys.list(),
     queryFn: async () => {
       const result = await authClient.organization.list()
@@ -24,6 +25,9 @@ export function useOrganizations() {
     },
     staleTime: 60 * 1000,
   })
+
+export function useOrganizations() {
+  return useQuery(organizationsListOptions())
 }
 
 export function useCreateOrganization() {
