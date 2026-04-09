@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useAuth } from '@/lib/auth-provider'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import {
   Zap,
@@ -11,7 +10,7 @@ import {
   Shield,
   BarChart3,
   Layers,
-  Users,
+  Building,
   Box,
   GitBranch,
   Terminal,
@@ -79,9 +78,9 @@ function App() {
               )}
               {isSignedIn && (
                 <Button asChild>
-                  <Link to="/users" search={{ page: 1, pageSize: 10, search: '' }}>
-                    <Users className="w-4 h-4" />
-                    Users Demo
+                  <Link to="/orgs">
+                    <Building className="w-4 h-4" />
+                    Organizations Demo
                   </Link>
                 </Button>
               )}
@@ -95,7 +94,7 @@ function App() {
               {isSignedIn ? (
                 <>
                   Check out the{' '}
-                  <Link to="/users" search={{ page: 1, pageSize: 10, search: '' }} className="underline">
+                  <Link to="/orgs" className="underline">
                     Users Demo
                   </Link>{' '}
                   to see the full-stack architecture in action

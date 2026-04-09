@@ -1,15 +1,16 @@
-import { Home, Users } from 'lucide-react'
+import { ShieldCheck, Building } from 'lucide-react'
 
 export interface NavItem {
   title: string
   url: string
   icon: typeof Home
-  isActive?: boolean
+  adminOnly?: boolean
 }
 
 export interface NavGroup {
   label: string
   items: NavItem[]
+  adminOnly?: boolean
 }
 
 export const sidebarNavGroups: NavGroup[] = [
@@ -17,15 +18,22 @@ export const sidebarNavGroups: NavGroup[] = [
     label: 'Main',
     items: [
       {
-        title: 'Home',
-        url: '/',
-        icon: Home,
-      },
-      {
-        title: 'Users',
-        url: '/users',
-        icon: Users,
+        title: 'Organizations',
+        url: '/orgs',
+        icon: Building,
       },
     ],
+  },
+  {
+    label: 'Administration',
+    items: [
+      {
+        title: 'Backoffice',
+        url: '/admin',
+        icon: ShieldCheck,
+        adminOnly: true,
+      },
+    ],
+    adminOnly: true,
   },
 ]

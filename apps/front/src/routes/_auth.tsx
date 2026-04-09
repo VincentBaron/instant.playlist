@@ -71,9 +71,9 @@ function AuthLayout() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <div className="flex flex-1 flex-col overflow-auto w-full">
+      <div className="flex flex-1 flex-col overflow-hidden w-full">
         <AdminHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="flex flex-1 flex-col overflow-auto [scrollbar-gutter:stable] [&>*]:w-full p-5">
           <Outlet />
         </div>
       </div>
