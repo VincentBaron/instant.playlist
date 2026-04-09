@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { ChevronsUpDown, Settings, LogOut, UserPlus } from 'lucide-react'
+import { ChevronsUpDown, Settings, LogOut, UserPlus, User } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import { useAuth } from '@/lib/auth-provider'
 import { useOrganizations, useSetActiveOrganization } from '@/lib/hooks/use-organizations'
@@ -153,6 +153,10 @@ export function UserMenu() {
           </>
         )}
 
+        <DropdownMenuItem onClick={() => navigate({ to: '/settings' })} className="gap-2 p-2">
+          <User className="h-4 w-4" />
+          <span>Account settings</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleSignOut} className="gap-2 p-2">
           <LogOut className="h-4 w-4" />
           <span>Log out</span>

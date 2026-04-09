@@ -17,6 +17,7 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AdminRouteImport } from './routes/_admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrganizationAcceptInvitationRouteImport } from './routes/organization/accept-invitation'
+import { Route as AuthSettingsRouteImport } from './routes/_auth/settings'
 import { Route as AuthOrgsIndexRouteImport } from './routes/_auth/orgs/index'
 import { Route as AdminAdminIndexRouteImport } from './routes/_admin/admin/index'
 import { Route as AuthOrgsOrgIdRouteImport } from './routes/_auth/orgs/$orgId'
@@ -63,6 +64,11 @@ const OrganizationAcceptInvitationRoute =
     path: '/organization/accept-invitation',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthSettingsRoute = AuthSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthOrgsIndexRoute = AuthOrgsIndexRouteImport.update({
   id: '/orgs/',
   path: '/orgs/',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/settings': typeof AuthSettingsRoute
   '/organization/accept-invitation': typeof OrganizationAcceptInvitationRoute
   '/admin/users': typeof AdminAdminUsersRoute
   '/orgs/$orgId': typeof AuthOrgsOrgIdRouteWithChildren
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/settings': typeof AuthSettingsRoute
   '/organization/accept-invitation': typeof OrganizationAcceptInvitationRoute
   '/admin/users': typeof AdminAdminUsersRoute
   '/admin': typeof AdminAdminIndexRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/_auth/settings': typeof AuthSettingsRoute
   '/organization/accept-invitation': typeof OrganizationAcceptInvitationRoute
   '/_admin/admin/users': typeof AdminAdminUsersRoute
   '/_auth/orgs/$orgId': typeof AuthOrgsOrgIdRouteWithChildren
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signin'
     | '/signup'
+    | '/settings'
     | '/organization/accept-invitation'
     | '/admin/users'
     | '/orgs/$orgId'
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signin'
     | '/signup'
+    | '/settings'
     | '/organization/accept-invitation'
     | '/admin/users'
     | '/admin'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signin'
     | '/signup'
+    | '/_auth/settings'
     | '/organization/accept-invitation'
     | '/_admin/admin/users'
     | '/_auth/orgs/$orgId'
@@ -253,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizationAcceptInvitationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_auth/settings': {
+      id: '/_auth/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthSettingsRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/orgs/': {
       id: '/_auth/orgs/'
       path: '/orgs'
@@ -325,11 +344,13 @@ const AuthOrgsOrgIdRouteWithChildren = AuthOrgsOrgIdRoute._addFileChildren(
 )
 
 interface AuthRouteChildren {
+  AuthSettingsRoute: typeof AuthSettingsRoute
   AuthOrgsOrgIdRoute: typeof AuthOrgsOrgIdRouteWithChildren
   AuthOrgsIndexRoute: typeof AuthOrgsIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
+  AuthSettingsRoute: AuthSettingsRoute,
   AuthOrgsOrgIdRoute: AuthOrgsOrgIdRouteWithChildren,
   AuthOrgsIndexRoute: AuthOrgsIndexRoute,
 }
