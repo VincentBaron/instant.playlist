@@ -19,7 +19,8 @@
     "db:types": "node -r esbuild-register src/scripts/generate_types.ts",
     "db:migrate:types": "kysely migrate & db:types",
     "db:migrate:down": "kysely migrate:down",
-    "db:migrate:create": "kysely migrate:make"
+    "db:migrate:create": "kysely migrate:make",
+    "typecheck": "tsc --noEmit"
   },
   "jest": {
     "preset": "@repo/jest-presets/node"

@@ -43,6 +43,11 @@
     "clean": {
       "cache": false
     },
+    "typecheck": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
     "db:migrate": {
       "dependsOn": [
         "^build"

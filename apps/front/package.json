@@ -8,7 +8,8 @@
     "serve": "vite preview",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "ui:add": "npx shadcn@latest add"
+    "ui:add": "npx shadcn@latest add",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hookform/resolvers": "5.2.2",
