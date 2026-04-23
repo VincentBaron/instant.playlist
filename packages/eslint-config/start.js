@@ -21,7 +21,7 @@ module.exports = {
     node: true,
     browser: true,
   },
-  plugins: ["only-warn", "@repo"],
+  plugins: ["@typescript-eslint", "@repo"],
   settings: {
     "import/resolver": {
       typescript: {
@@ -37,11 +37,12 @@ module.exports = {
     ".vinxi/",
   ],
   overrides: [
-    { files: ["*.js?(x)", "*.ts?(x)"] },
     {
       files: ["*.ts", "*.tsx"],
       rules: {
         "no-undef": "off",
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       },
     },
   ],

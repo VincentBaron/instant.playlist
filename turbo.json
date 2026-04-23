@@ -22,7 +22,8 @@
         "SENTRY_AUTH_TOKEN",
         "VITE_POSTHOG_KEY",
         "VITE_POSTHOG_HOST",
-        "LOG_LEVEL"
+        "LOG_LEVEL",
+        "PORT"
       ]
     },
     "test": {
