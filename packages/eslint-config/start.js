@@ -9,6 +9,10 @@ module.exports = {
     "prettier",
     "turbo",
   ],
+  parser: "@typescript-eslint/parser",
+  parserOptions: {
+    project: true,
+  },
   globals: {
     React: true,
     JSX: true,
@@ -17,7 +21,7 @@ module.exports = {
     node: true,
     browser: true,
   },
-  plugins: ["only-warn"],
+  plugins: ["only-warn", "@repo"],
   settings: {
     "import/resolver": {
       typescript: {
