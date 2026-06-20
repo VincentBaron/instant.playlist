@@ -11,7 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:verify": "tsx scripts/m1-verify.ts",
-    "vision:verify": "tsx scripts/m2-verify.ts"
+    "vision:verify": "tsx scripts/m2-verify.ts",
+    "resolve:verify": "tsx scripts/m3-verify.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
