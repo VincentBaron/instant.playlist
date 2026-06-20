@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/*
+ * "Fly-Poster" design tokens — two-ink screenprint.
+ * Boldness lives in ONE ink (acid); ember is the brand heartbeat only.
+ * See ~/.claude/plans/i-want-to-start-stateful-finch.md for the full system.
+ */
+:root {
+  --paper: #ede6d6; /* warm poster stock — landing, player, lists (utility) */
+  --ink: #15120d; /* warm near-black print ink — text + dark poster field */
+  --acid: #cbff3c; /* THE signature spot — play/active/ticket CTA/"alive" */
+  --ember: #ff4a1c; /* brand accent only — wordmark dot + now-playing pulse */
+  --muted: #877f70; /* warm grey — secondary text on paper */
+  --line: #d7cfbc; /* hairline borders on paper surfaces */
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-acid: var(--acid);
+  --color-ember: var(--ember);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+
+  /* display = what humans curated · mono = what the system resolved */
+  --font-display: var(--font-archivo);
+  --font-mono: var(--font-space-mono);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  /* mono is the machine baseline; Archivo (font-display) is opted into for poster type */
+  font-family: var(--font-space-mono), ui-monospace, monospace;
+}
