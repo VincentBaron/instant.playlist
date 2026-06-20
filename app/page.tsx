@@ -1,50 +1,58 @@
-export default function Home() {
+import Dropzone from "@/components/Dropzone";
+import { listLineups } from "@/lib/db";
+
+// The recent index reads the DB per request.
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const recent = await listLineups();
+
   return (
-    <main className="flex flex-1 flex-col justify-between gap-16 px-6 py-12 sm:px-10 sm:py-16">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-12 px-6 py-12 sm:py-16">
       {/* wordmark — mono, reads like a domain; ember dot = brand heartbeat */}
       <p className="font-mono text-sm tracking-tight text-ink">
         instant<span className="text-ember">.</span>playlist
       </p>
 
       {/* the human-curated poster voice — Archivo, big */}
-      <div className="max-w-3xl">
-        <h1 className="font-display text-5xl font-black uppercase leading-[0.92] tracking-tight sm:text-7xl">
+      <header>
+        <h1 className="font-display text-5xl font-black uppercase leading-[0.92] tracking-tight sm:text-6xl">
           Hear the lineup.
           <br />
           Point at any poster.
         </h1>
-        <p className="mt-6 max-w-md font-mono text-sm leading-relaxed text-muted">
+        <p className="mt-4 max-w-md font-mono text-sm leading-relaxed text-muted">
           Scan a festival poster → a public, shareable page that plays the whole
           lineup&apos;s SoundCloud DJ sets back to back.
         </p>
-      </div>
+      </header>
 
-      {/* M0 token check-strip + the acid CTA */}
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center bg-acid px-4 py-2 font-mono text-sm font-bold uppercase text-ink">
-            ▶ play the bill
-          </span>
-          <span className="font-mono text-xs uppercase tracking-widest text-muted">
-            M0 · scaffold live
-          </span>
-        </div>
-        <div className="flex gap-2">
-          {(["paper", "ink", "acid", "ember", "muted", "line"] as const).map(
-            (token) => (
-              <div key={token} className="flex flex-col items-center gap-1">
-                <div
-                  className="h-10 w-10 border border-line"
-                  style={{ background: `var(--${token})` }}
-                />
-                <span className="font-mono text-[10px] text-muted">
-                  {token}
-                </span>
-              </div>
-            ),
-          )}
-        </div>
-      </div>
+      <Dropzone />
+
+      {recent.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-mono text-xs uppercase tracking-widest text-muted">
+            recent lineups
+          </h2>
+          <ul className="flex flex-col divide-y divide-line border-y border-line">
+            {recent.map((l) => (
+              <li key={l.slug}>
+                <a
+                  href={`/${l.slug}`}
+                  className="flex items-baseline justify-between gap-4 py-3 transition-colors hover:text-ember"
+                >
+                  <span className="font-display text-lg font-bold uppercase leading-none">
+                    {l.festival ?? l.title}
+                  </span>
+                  <span className="shrink-0 font-mono text-xs uppercase tracking-widest text-muted">
+                    {l.playableCount} playable
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }

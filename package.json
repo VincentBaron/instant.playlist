@@ -13,7 +13,8 @@
     "db:verify": "tsx scripts/m1-verify.ts",
     "vision:verify": "tsx scripts/m2-verify.ts",
     "resolve:verify": "tsx scripts/m3-verify.ts",
-    "api:verify": "tsx scripts/m4-verify.ts"
+    "api:verify": "tsx scripts/m4-verify.ts",
+    "upload:verify": "tsx scripts/m5-verify.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
@@ -21,7 +22,8 @@
     "next": "16.2.9",
     "postgres": "^3.4.9",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "sharp": "^0.35.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -33,7 +35,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "eslint-plugin-no-barrel-files": "^1.2.2",
-    "sharp": "^0.35.2",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
     "typescript": "^5"

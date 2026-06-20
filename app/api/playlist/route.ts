@@ -1,20 +1,55 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { extractArtists } from "@/lib/anthropic";
+import { normalizePoster } from "@/lib/image";
 import { resolveArtists } from "@/lib/resolve";
-import { saveLineup } from "@/lib/db";
+import { saveLineup, type SaveLineupOpts } from "@/lib/db";
 
 // Resolve fans out to SoundCloud — needs Node (not edge) and room to run.
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const ImageRequest = z.object({
-  image: z.string().min(1), // base64, no data: prefix
-  mediaType: z.enum(["image/png", "image/jpeg", "image/webp", "image/gif"]),
-  title: z.string().optional(),
-  festival: z.string().optional(),
-  officialTicketUrl: z.string().url().optional(),
-});
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // ~8MB cap on the poster
+
+function bad(message: string, status = 400) {
+  return NextResponse.json({ error: message }, { status });
+}
+
+/** Shared tail: resolve names → playable Artists → save under a slug → 201. */
+async function buildAndSave(names: string[], opts: SaveLineupOpts) {
+  if (names.length === 0) return bad("no artists could be read from the input", 422);
+  const artists = await resolveArtists(names); // never throws
+  const lineup = await saveLineup(artists, opts);
+  return NextResponse.json({ lineup }, { status: 201 });
+}
+
+/** Poster upload (multipart) → normalize → vision → resolve → save. */
+async function handleUpload(req: Request) {
+  const form = await req.formData();
+  const poster = form.get("poster");
+  if (!(poster instanceof File)) return bad("expected a 'poster' file");
+  if (poster.size > MAX_UPLOAD_BYTES) return bad("poster too large (max 8MB)", 413);
+
+  const bytes = Buffer.from(await poster.arrayBuffer());
+  let imageBase64: string;
+  try {
+    imageBase64 = await normalizePoster(bytes); // HEIC/PNG/WebP/JPEG → JPEG base64
+  } catch {
+    return bad("couldn't read that image — try a JPEG or PNG", 415);
+  }
+
+  const extracted = await extractArtists(imageBase64, "image/jpeg");
+  const festivalField = form.get("festival");
+  return buildAndSave(extracted.artists, {
+    title: stringField(form.get("title")),
+    festival: stringField(festivalField) ?? extracted.festival,
+    officialTicketUrl: stringField(form.get("officialTicketUrl")) ?? null,
+  });
+}
+
+function stringField(v: FormDataEntryValue | null): string | undefined {
+  return typeof v === "string" && v.trim() ? v.trim() : undefined;
+}
 
 const ArtistsRequest = z.object({
   artists: z.array(z.string().min(1)).min(1), // dev/manual path
@@ -23,58 +58,35 @@ const ArtistsRequest = z.object({
   officialTicketUrl: z.string().url().optional(),
 });
 
-const Body = z.union([ImageRequest, ArtistsRequest]);
-
-function bad(message: string, status = 400) {
-  return NextResponse.json({ error: message }, { status });
-}
-
-/**
- * Generate, resolve, and save a lineup. Accepts a poster image OR a hand-built
- * artist list (dev path). Returns the saved LineupRecord. Errors are returned as
- * `{ error }` with a proper status — never a leaked stack.
- */
-export async function POST(req: Request) {
+/** JSON dev path: a hand-built artist list. */
+async function handleJson(req: Request) {
   let json: unknown;
   try {
     json = await req.json();
   } catch {
     return bad("invalid JSON body");
   }
+  const parsed = ArtistsRequest.safeParse(json);
+  if (!parsed.success) return bad("body must be { artists: string[] }");
+  const { artists, title, festival, officialTicketUrl } = parsed.data;
+  return buildAndSave(artists, {
+    title,
+    festival: festival ?? null,
+    officialTicketUrl: officialTicketUrl ?? null,
+  });
+}
 
-  const parsed = Body.safeParse(json);
-  if (!parsed.success) {
-    return bad("body must be { image, mediaType } or { artists: string[] }");
-  }
-  const body = parsed.data;
-
+/**
+ * Generate, resolve, and save a lineup. Multipart → poster image; JSON → artist list.
+ * Errors return `{ error }` with a proper status — never a leaked stack.
+ */
+export async function POST(req: Request) {
   try {
-    // Step 1: get the artist names (+ maybe a festival) — from vision or the body.
-    let names: string[];
-    let festival = body.festival ?? null;
-    if ("image" in body) {
-      const extracted = await extractArtists(body.image, body.mediaType);
-      names = extracted.artists;
-      festival = body.festival ?? extracted.festival;
-    } else {
-      names = body.artists;
-    }
-
-    if (names.length === 0) {
-      return bad("no artists could be read from the input", 422);
-    }
-
-    // Step 2: resolve to playable Artists (never throws). Step 3: save under a slug.
-    const artists = await resolveArtists(names);
-    const lineup = await saveLineup(artists, {
-      title: body.title,
-      festival,
-      officialTicketUrl: body.officialTicketUrl ?? null,
-    });
-
-    return NextResponse.json({ lineup }, { status: 201 });
+    const contentType = req.headers.get("content-type") ?? "";
+    return contentType.includes("multipart/form-data")
+      ? await handleUpload(req)
+      : await handleJson(req);
   } catch (err) {
-    // Vision/DB can throw; log server-side, return a clean message.
     console.error("POST /api/playlist failed:", err);
     return bad("failed to build the lineup", 500);
   }
