@@ -15,19 +15,9 @@ type Status =
 export default function Dropzone() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [dragging, setDragging] = useState(false);
-  // Touch devices can't drop/paste — swap the hint wording. Detected after mount
-  // so the first client paint matches the server (desktop wording) and React
-  // doesn't flag a hydration mismatch. Default false → SSR-safe.
-  const [touch, setTouch] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scanningRef = useRef(false); // guards against concurrent paste/drop/pick
   const busy = status.kind === "scanning";
-
-  useEffect(() => {
-    // Intentional post-hydration sync (see note above): SSR can't read matchMedia.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTouch(window.matchMedia("(pointer: coarse)").matches);
-  }, []);
 
   const scan = useCallback(async (file: File) => {
     if (scanningRef.current) return;
@@ -135,9 +125,17 @@ export default function Dropzone() {
           {busy ? "reading the poster…" : "drop a festival poster"}
         </span>
         <span className="font-mono text-xs uppercase tracking-widest text-muted">
-          {busy
-            ? "this can take a moment"
-            : `${touch ? "or tap to choose" : "tap, drop, or paste"} · jpeg, png, heic`}
+          {busy ? (
+            "this can take a moment"
+          ) : (
+            <>
+              {/* Touch devices can't drop/paste — swap wording via pure CSS so the
+                  server and client render identical HTML (no hydration mismatch). */}
+              <span className="pointer-coarse:hidden">tap, drop, or paste</span>
+              <span className="hidden pointer-coarse:inline">or tap to choose</span>
+              {" · jpeg, png, heic"}
+            </>
+          )}
         </span>
       </button>
 
