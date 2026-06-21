@@ -8,6 +8,13 @@
       "when": 1781996909147,
       "tag": "0000_curious_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782001233302,
+      "tag": "0001_sparkling_old_lace",
+      "breakpoints": true
     }
   ]
 }

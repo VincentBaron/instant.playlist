@@ -22,3 +22,22 @@ export async function normalizePoster(bytes: Buffer): Promise<string> {
     .toBuffer();
   return jpeg.toString("base64");
 }
+
+/*
+ * A small, dimmed-backdrop variant of the poster for the share page (the lineup is typeset
+ * on top of it). Kept tiny — long edge 800px, q70 — so the stored data URL stays light
+ * (~tens of KB), not the ~1MB vision image. Returns a ready-to-use `data:` URL.
+ */
+export async function posterBackdropDataUrl(bytes: Buffer): Promise<string> {
+  const jpeg = await sharp(bytes)
+    .rotate() // honor EXIF orientation
+    .resize({
+      width: 800,
+      height: 800,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: 70 })
+    .toBuffer();
+  return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+}

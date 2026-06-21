@@ -56,6 +56,18 @@ export default async function LineupPage({
   return (
     // dark poster field + riso grain — the hero surface
     <main className="grain relative flex min-h-svh flex-col bg-ink text-paper">
+      {lineup.posterImage && (
+        <>
+          {/* the real poster, dimmed beneath the typeset lineup ("ink hitting paper") */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center opacity-25"
+            style={{ backgroundImage: `url(${lineup.posterImage})` }}
+          />
+          {/* scrim: keep the lineup readable over any poster */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 z-0 bg-ink/70" />
+        </>
+      )}
       <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-6 py-12 pb-32 sm:py-16">
         {/* top nav — an obvious way back to browse all lineups */}
         <nav>

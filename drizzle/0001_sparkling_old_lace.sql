@@ -1,0 +1,1 @@
+ALTER TABLE "lineups" ADD COLUMN "poster_image" text;

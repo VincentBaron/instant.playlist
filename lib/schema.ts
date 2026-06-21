@@ -25,4 +25,5 @@ export const lineups = pgTable("lineups", {
   artistCount: integer("artist_count").notNull(),
   playableCount: integer("playable_count").notNull(),
   artists: jsonb("artists").$type<Artist[]>().notNull(), // resolved Artist[]
+  posterImage: text("poster_image"), // nullable: downscaled JPEG data URL for the faded backdrop
 });

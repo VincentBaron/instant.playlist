@@ -44,6 +44,7 @@ function toRecord(row: LineupRow): LineupRecord {
     artistCount: row.artistCount,
     playableCount: row.playableCount,
     artists: row.artists,
+    posterImage: row.posterImage,
   };
 }
 
@@ -76,6 +77,7 @@ export type SaveLineupOpts = {
   title?: string;
   festival?: string | null;
   officialTicketUrl?: string | null;
+  posterImage?: string | null;
   createdAt?: Date;
 };
 
@@ -96,6 +98,7 @@ export async function saveLineup(
   const artistCount = validated.length;
   const playableCount = countPlayable(validated);
   const officialTicketUrl = opts.officialTicketUrl ?? null;
+  const posterImage = opts.posterImage ?? null;
 
   const [row] = await getDb()
     .insert(lineups)
@@ -107,11 +110,20 @@ export async function saveLineup(
       artistCount,
       playableCount,
       artists: validated,
+      posterImage,
       ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
     })
     .onConflictDoUpdate({
       target: lineups.slug,
-      set: { title, festival, officialTicketUrl, artistCount, playableCount, artists: validated },
+      set: {
+        title,
+        festival,
+        officialTicketUrl,
+        artistCount,
+        playableCount,
+        artists: validated,
+        posterImage,
+      },
     })
     .returning();
   return toRecord(row);

@@ -38,7 +38,8 @@ export type LineupRecord = {
   artistCount: number;
   playableCount: number;
   artists: Artist[];
+  posterImage: string | null; // dimmed poster backdrop (JPEG data URL); null for older/JSON lineups
 };
 
-/** Lightweight lineup row for the public index (no artists blob). */
-export type LineupSummary = Omit<LineupRecord, "artists">;
+/** Lightweight lineup row for the public index (no artists blob, no heavy poster data URL). */
+export type LineupSummary = Omit<LineupRecord, "artists" | "posterImage">;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { extractArtists } from "@/lib/anthropic";
-import { normalizePoster } from "@/lib/image";
+import { normalizePoster, posterBackdropDataUrl } from "@/lib/image";
 import { resolveArtists } from "@/lib/resolve";
 import { saveLineup, type SaveLineupOpts } from "@/lib/db";
 
@@ -39,11 +39,15 @@ async function handleUpload(req: Request) {
   }
 
   const extracted = await extractArtists(imageBase64, "image/jpeg");
+  // A dimmed copy of the poster becomes the share-page backdrop. Never fatal — a backdrop
+  // failure must not sink lineup creation (mirrors "resolvers never throw").
+  const posterImage = await posterBackdropDataUrl(bytes).catch(() => null);
   const festivalField = form.get("festival");
   return buildAndSave(extracted.artists, {
     title: stringField(form.get("title")),
     festival: stringField(festivalField) ?? extracted.festival,
     officialTicketUrl: stringField(form.get("officialTicketUrl")) ?? null,
+    posterImage,
   });
 }
 
