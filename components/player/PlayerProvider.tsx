@@ -47,6 +47,9 @@ interface SCWidget {
   bind(event: string, cb: (e?: { relativePosition?: number }) => void): void;
   load(url: string, opts: Record<string, unknown>): void;
   toggle(): void;
+  seekTo(milliseconds: number): void;
+  getPosition(cb: (milliseconds: number) => void): void;
+  getDuration(cb: (milliseconds: number) => void): void;
 }
 interface SCStatic {
   Widget: ((el: HTMLIFrameElement) => SCWidget) & {
@@ -149,6 +152,49 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
   const next = useCallback(() => playAt(indexRef.current + 1), [playAt]);
   const prev = useCallback(() => playAt(indexRef.current - 1), [playAt]);
 
+  // Jump through a set like a DJ scrubbing the deck. Past the end → next DJ.
+  const seekBy = useCallback(
+    (seconds: number) => {
+      const w = widgetRef.current;
+      if (!w) return;
+      w.getDuration((durationMs) => {
+        w.getPosition((posMs) => {
+          const target = posMs + seconds * 1000;
+          if (target >= durationMs) playAt(indexRef.current + 1);
+          else w.seekTo(Math.max(0, target));
+        });
+      });
+    },
+    [playAt],
+  );
+
+  // Tap the progress bar to land anywhere in the set (the mobile "jump").
+  const seekToFraction = useCallback((f: number) => {
+    const w = widgetRef.current;
+    if (!w) return;
+    const clamped = Math.max(0, Math.min(0.999, f));
+    w.getDuration((durationMs) => w.seekTo(clamped * durationMs));
+  }, []);
+
+  // Desktop: J jumps forward 30s, K back 30s. Ignore while typing in a field.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey || !widgetRef.current) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      const k = e.key.toLowerCase();
+      if (k === "j") {
+        e.preventDefault();
+        seekBy(30);
+      } else if (k === "k") {
+        e.preventDefault();
+        seekBy(-30);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [seekBy]);
+
   // When the iframe first appears, init the widget once the API is ready.
   const onIframeLoad = useCallback(() => {
     if (widgetRef.current) return;
@@ -178,8 +224,69 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
         />
       )}
 
-      {current && <PlayerBar current={current} isPlaying={isPlaying} progress={progress} onToggle={toggle} onNext={next} onPrev={prev} />}
+      {current && <PlayerBar current={current} isPlaying={isPlaying} progress={progress} onToggle={toggle} onNext={next} onPrev={prev} onSeekBy={seekBy} onSeekFraction={seekToFraction} />}
     </PlayerContext.Provider>
+  );
+}
+
+/*
+ * Flat two-ink control glyphs. All icons inherit `currentColor` so a button's text
+ * color is the only knob — secondary controls sit in --muted and light to --ink on
+ * hover; the play/pause hero inverts to --ink on an --acid field. 24x24 viewBox,
+ * geometric, no OS emoji (those were the colorful skip glyphs that broke the look).
+ */
+function SkipIcon({ dir }: { dir: "prev" | "next" }) {
+  // Two triangles + a bar — jump to the previous/next set.
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="h-4 w-4">
+      {dir === "next" ? (
+        <>
+          <path d="M5 5l8 7-8 7V5z" />
+          <path d="M13 5l6 7-6 7V5z" />
+          <rect x="18" y="5" width="2" height="14" />
+        </>
+      ) : (
+        <>
+          <rect x="4" y="5" width="2" height="14" />
+          <path d="M19 5l-8 7 8 7V5z" />
+          <path d="M11 5l-6 7 6 7V5z" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function SeekIcon({ dir }: { dir: "back" | "fwd" }) {
+  // Two triangles — fast-forward / rewind 30s within the current set.
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="h-3.5 w-3.5">
+      {dir === "fwd" ? (
+        <>
+          <path d="M3 5l8 7-8 7V5z" />
+          <path d="M12 5l8 7-8 7V5z" />
+        </>
+      ) : (
+        <>
+          <path d="M21 5l-8 7 8 7V5z" />
+          <path d="M12 5l-8 7 8 7V5z" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function TransportIcon({ playing }: { playing: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="h-4 w-4">
+      {playing ? (
+        <>
+          <rect x="6" y="5" width="4" height="14" />
+          <rect x="14" y="5" width="4" height="14" />
+        </>
+      ) : (
+        <path d="M7 5l12 7-12 7V5z" />
+      )}
+    </svg>
   );
 }
 
@@ -190,6 +297,8 @@ function PlayerBar({
   onToggle,
   onNext,
   onPrev,
+  onSeekBy,
+  onSeekFraction,
 }: {
   current: QueueItem;
   isPlaying: boolean;
@@ -197,13 +306,23 @@ function PlayerBar({
   onToggle: () => void;
   onNext: () => void;
   onPrev: () => void;
+  onSeekBy: (seconds: number) => void;
+  onSeekFraction: (f: number) => void;
 }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-paper">
-      {/* acid progress */}
-      <div className="h-0.5 w-full bg-line">
+      {/* acid progress — tap anywhere to jump there in the set */}
+      <button
+        type="button"
+        aria-label="seek"
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          onSeekFraction((e.clientX - rect.left) / rect.width);
+        }}
+        className="block h-2 w-full cursor-pointer bg-line"
+      >
         <div className="h-full bg-acid" style={{ width: `${Math.round(progress * 100)}%` }} />
-      </div>
+      </button>
       <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
         {/* ember pulse when live */}
         <span
@@ -219,20 +338,50 @@ function PlayerBar({
             {current.title} · {current.durationMin}m
           </p>
         </div>
-        <button type="button" onClick={onPrev} className="font-mono text-sm text-muted" aria-label="previous">
-          ⏮
-        </button>
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label={isPlaying ? "pause" : "play"}
-          className="flex h-9 w-9 items-center justify-center bg-acid font-mono text-sm text-ink"
-        >
-          {isPlaying ? "⏸" : "▶"}
-        </button>
-        <button type="button" onClick={onNext} className="font-mono text-sm text-muted" aria-label="next">
-          ⏭
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onPrev}
+            aria-label="previous set"
+            className="flex h-9 w-9 items-center justify-center text-muted transition-colors hover:text-ink"
+          >
+            <SkipIcon dir="prev" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onSeekBy(-30)}
+            title="back 30s (K)"
+            aria-label="jump back 30 seconds"
+            className="flex h-9 w-9 items-center justify-center text-muted transition-colors hover:text-ink"
+          >
+            <SeekIcon dir="back" />
+          </button>
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={isPlaying ? "pause" : "play"}
+            className="flex h-9 w-9 items-center justify-center bg-acid text-ink transition-opacity hover:opacity-90"
+          >
+            <TransportIcon playing={isPlaying} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onSeekBy(30)}
+            title="jump 30s (J)"
+            aria-label="jump forward 30 seconds"
+            className="flex h-9 w-9 items-center justify-center text-muted transition-colors hover:text-ink"
+          >
+            <SeekIcon dir="fwd" />
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            aria-label="next set"
+            className="flex h-9 w-9 items-center justify-center text-muted transition-colors hover:text-ink"
+          >
+            <SkipIcon dir="next" />
+          </button>
+        </div>
       </div>
     </div>
   );

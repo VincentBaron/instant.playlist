@@ -3,9 +3,11 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import LineupView from "@/components/LineupView";
+import LineupCanvas from "@/components/LineupCanvas";
 import ShareControls from "@/components/ShareControls";
-import { getLineupBySlug } from "@/lib/db";
+import { getLineupBySlug, getTopPattern, listPatterns } from "@/lib/db";
 import { qrDataUrl } from "@/lib/qr";
+import { HOUSE_PATTERN, type Pattern } from "@/lib/themes";
 
 export const dynamic = "force-dynamic";
 
@@ -42,8 +44,10 @@ function ticketHref(url: string, slug: string): string {
 
 export default async function LineupPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ p?: string }>;
 }) {
   const { slug } = await params;
   const lineup = await getLineupBySlug(slug);
@@ -53,24 +57,28 @@ export default async function LineupPage({
   const qr = await qrDataUrl(pageUrl);
   const name = lineup.festival ?? lineup.title;
 
+  // The default look is the top-voted community pattern (or the house default). A `?p=<id>`
+  // link focuses a specific posted pattern so a remix can be shared at its exact colors.
+  const [posted, top] = await Promise.all([listPatterns(slug), getTopPattern(slug)]);
+  const { p } = await searchParams;
+  const focusId = p ? Number(p) : NaN;
+  const chosen =
+    (Number.isFinite(focusId) ? posted.find((x) => x.id === focusId) : undefined) ??
+    top;
+  const initialPattern: Pattern = chosen
+    ? { from: chosen.from, to: chosen.to, accent: chosen.accent, grain: chosen.grain }
+    : HOUSE_PATTERN;
+
   return (
-    // dark poster field + riso grain — the hero surface
-    <main className="grain relative flex min-h-svh flex-col bg-ink text-paper">
-      {lineup.posterImage && (
-        <>
-          {/* the real poster, dimmed beneath the typeset lineup ("ink hitting paper") */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center opacity-25"
-            style={{ backgroundImage: `url(${lineup.posterImage})` }}
-          />
-          {/* scrim: keep the lineup readable over any poster */}
-          <div aria-hidden className="pointer-events-none absolute inset-0 z-0 bg-ink/70" />
-        </>
-      )}
-      <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-6 py-12 pb-32 sm:py-16">
-        {/* top nav — an obvious way back to browse all lineups */}
-        <nav>
+    // dark poster field + riso grain + community pattern — the hero surface
+    <LineupCanvas
+      slug={slug}
+      posterImage={lineup.posterImage}
+      patterns={posted}
+      initialPattern={initialPattern}
+    >
+      {/* top nav — an obvious way back to browse all lineups */}
+      <nav>
           <Link
             href="/"
             className="-ml-1 inline-flex items-center gap-2 px-1 py-1 font-mono text-xs uppercase tracking-widest text-paper/80 transition-colors hover:text-acid"
@@ -111,7 +119,6 @@ export default async function LineupPage({
           )}
           <ShareControls qrDataUrl={qr} slug={slug} title={name} />
         </div>
-      </div>
-    </main>
+    </LineupCanvas>
   );
 }

@@ -15,6 +15,13 @@
       "when": 1782001233302,
       "tag": "0001_sparkling_old_lace",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782010228147,
+      "tag": "0002_dear_retro_girl",
+      "breakpoints": true
     }
   ]
 }

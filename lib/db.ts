@@ -1,4 +1,5 @@
-import { desc, eq } from "drizzle-orm";
+import { randomBytes, createHash } from "node:crypto";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
@@ -7,7 +8,8 @@ import {
   type LineupRecord,
   type LineupSummary,
 } from "@/types";
-import { lineups } from "@/lib/schema";
+import { lineups, patterns, patternVotes } from "@/lib/schema";
+import { clampGrain, type Pattern } from "@/lib/themes";
 
 /*
  * Side effects live here. Server-side only — never import this into a client component
@@ -192,4 +194,159 @@ export async function updateLineupSchedule(
     .where(eq(lineups.slug, slug))
     .returning();
   return row ? toRecord(row) : null;
+}
+
+/* ── Community patterns ─────────────────────────────────────────────────────────────
+ * Anonymous, curated-color theme submissions per lineup. Top-voted = the default look.
+ * Identity = the secret `token` (creator's private link). No auth anywhere.
+ */
+const MAX_PATTERNS = 10;
+
+type PatternRow = typeof patterns.$inferSelect;
+
+/** Public shape (no secret token) — what voters/visitors see. grain back to a 0..1 float. */
+export type PatternPublic = {
+  id: number;
+  from: string;
+  to: string;
+  accent: string;
+  grain: number;
+  votes: number;
+  selected: boolean;
+  published: boolean;
+};
+export type PatternCreated = PatternPublic & { token: string };
+export type PatternStatus = PatternCreated & { lineupSlug: string };
+
+function toPatternPublic(row: PatternRow): PatternPublic {
+  return {
+    id: row.id,
+    from: row.bgFrom,
+    to: row.bgTo,
+    accent: row.accent,
+    grain: row.grain / 100,
+    votes: row.votes,
+    selected: row.selected,
+    published: row.published,
+  };
+}
+
+/** sha256(ip|user-agent) — the per-voter fingerprint behind dedupe. */
+export function voterHash(ip: string, userAgent: string): string {
+  return createHash("sha256").update(`${ip}|${userAgent}`).digest("hex");
+}
+
+/**
+ * Post a new pattern for a lineup. Enforces the 10-cap: when full, the lowest-voted (then
+ * oldest) live pattern is archived so a fresh submission always gets a slot to climb from.
+ * Returns the created row INCLUDING its secret token (the creator's private link).
+ */
+export async function createPattern(
+  slug: string,
+  p: Pattern,
+): Promise<PatternCreated> {
+  const db = getDb();
+  const live = await db
+    .select()
+    .from(patterns)
+    .where(and(eq(patterns.lineupSlug, slug), eq(patterns.archived, false)))
+    .orderBy(asc(patterns.votes), asc(patterns.createdAt));
+
+  if (live.length >= MAX_PATTERNS) {
+    await db
+      .update(patterns)
+      .set({ archived: true })
+      .where(eq(patterns.id, live[0].id));
+  }
+
+  const [row] = await db
+    .insert(patterns)
+    .values({
+      token: randomBytes(9).toString("base64url"),
+      lineupSlug: slug,
+      bgFrom: p.from,
+      bgTo: p.to,
+      accent: p.accent,
+      grain: Math.round(clampGrain(p.grain) * 100),
+    })
+    .returning();
+  return { ...toPatternPublic(row), token: row.token };
+}
+
+/** Live patterns for a lineup, best first (votes desc, oldest tiebreak). */
+export async function listPatterns(slug: string): Promise<PatternPublic[]> {
+  const rows = await getDb()
+    .select()
+    .from(patterns)
+    .where(and(eq(patterns.lineupSlug, slug), eq(patterns.archived, false)))
+    .orderBy(desc(patterns.votes), asc(patterns.createdAt))
+    .limit(MAX_PATTERNS);
+  return rows.map(toPatternPublic);
+}
+
+/** The lineup's default look: the top-voted live pattern, or null if none posted yet. */
+export async function getTopPattern(slug: string): Promise<PatternPublic | null> {
+  const [row] = await getDb()
+    .select()
+    .from(patterns)
+    .where(and(eq(patterns.lineupSlug, slug), eq(patterns.archived, false)))
+    .orderBy(desc(patterns.votes), asc(patterns.createdAt))
+    .limit(1);
+  return row ? toPatternPublic(row) : null;
+}
+
+/**
+ * Cast a vote. Idempotent per (pattern, voter): the dedupe row is inserted first and the
+ * counter only bumps when that insert is new. Returns { ok:false } if already voted or the
+ * pattern doesn't belong to this lineup / is archived.
+ */
+export async function votePattern(
+  slug: string,
+  patternId: number,
+  hash: string,
+): Promise<{ ok: boolean; votes: number | null }> {
+  const db = getDb();
+  const [p] = await db
+    .select()
+    .from(patterns)
+    .where(
+      and(
+        eq(patterns.id, patternId),
+        eq(patterns.lineupSlug, slug),
+        eq(patterns.archived, false),
+      ),
+    )
+    .limit(1);
+  if (!p) return { ok: false, votes: null };
+
+  const inserted = await db
+    .insert(patternVotes)
+    .values({ patternId, voterHash: hash })
+    .onConflictDoNothing()
+    .returning();
+  if (inserted.length === 0) return { ok: false, votes: p.votes }; // already voted
+
+  const [updated] = await db
+    .update(patterns)
+    .set({ votes: sql`${patterns.votes} + 1` })
+    .where(eq(patterns.id, patternId))
+    .returning();
+  return { ok: true, votes: updated.votes };
+}
+
+/** The creator's private view, looked up by their secret token. */
+export async function getPatternByToken(
+  token: string,
+): Promise<PatternStatus | null> {
+  const [row] = await getDb()
+    .select()
+    .from(patterns)
+    .where(eq(patterns.token, token))
+    .limit(1);
+  if (!row) return null;
+  return {
+    ...toPatternPublic(row),
+    token: row.token,
+    lineupSlug: row.lineupSlug,
+  };
 }
