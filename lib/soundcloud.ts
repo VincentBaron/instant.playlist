@@ -1,4 +1,5 @@
 import type { Track } from "@/types";
+import { inferBpm } from "@/lib/bpm";
 
 /*
  * SoundCloud's INTERNAL api-v2 (unofficial — official API access is pending). All of
@@ -26,6 +27,9 @@ interface SCRawTrack {
   full_duration?: number; // ms (the real length)
   artwork_url?: string | null;
   playback_count?: number;
+  bpm?: number | null; // rarely set by uploaders
+  genre?: string | null; // single genre label
+  tag_list?: string | null; // space-separated tags (the usual tempo signal)
 }
 interface SCPage<T> {
   collection?: T[];
@@ -102,6 +106,7 @@ function toTrack(raw: SCRawTrack): Track {
     url: raw.permalink_url ?? "",
     durationMin: Math.max(0, Math.round(ms / 60_000)),
     artworkUrl: typeof raw.artwork_url === "string" ? raw.artwork_url : null,
+    bpm: inferBpm({ bpm: raw.bpm, genre: raw.genre, tagList: raw.tag_list }),
   };
 }
 

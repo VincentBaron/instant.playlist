@@ -39,8 +39,9 @@ solo MVP. Optimize for **low files-per-feature** — that is the agent-velocity 
 ```
 Type: **Archivo** (condensed/black) = the human-curated poster (festival name, artist names);
 **Space Mono** = the machine (wordmark, counts, track titles, durations, status). Signature move:
-**the lineup IS a playable poster** — headliners huge → undercard packed small, every name a live
-row; playing name lit `--acid` with an `--ember` pulse; faint riso grain over a dark field. The
+**the lineup IS a playable poster** — name size encodes the set's **BPM** (faster = bigger, unknown
+= smallest; see `lib/bpm.ts` + `fontSizeFor` in `components/LineupView.tsx`), every name a live row;
+playing name lit `--acid` with an `--ember` pulse; faint riso grain over a dark field. The
 public share page is the hero (QR landing + screenshot): instant, gorgeous on mobile, autoplay-on-
 tap, NO signup wall. Landing + player stay quiet so the share page hits hardest. Mobile-first;
 respect `prefers-reduced-motion`. PWA: ship the web manifest only; **no service worker** for MVP.

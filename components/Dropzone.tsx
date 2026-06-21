@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LineupRecord } from "@/types";
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -15,13 +16,16 @@ export default function Dropzone() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scanningRef = useRef(false); // guards against concurrent paste/drop/pick
   const busy = status.kind === "scanning";
 
-  async function scan(file: File) {
+  const scan = useCallback(async (file: File) => {
+    if (scanningRef.current) return;
     if (file.size > MAX_BYTES) {
       setStatus({ kind: "error", message: "that image is over 8MB — try a smaller one" });
       return;
     }
+    scanningRef.current = true;
     setStatus({ kind: "scanning" });
     try {
       const body = new FormData();
@@ -35,8 +39,30 @@ export default function Dropzone() {
       setStatus({ kind: "done", lineup: data.lineup });
     } catch {
       setStatus({ kind: "error", message: "couldn't reach the server" });
+    } finally {
+      scanningRef.current = false;
     }
-  }
+  }, []);
+
+  // Paste a poster screenshot straight in (Cmd/Ctrl+V) — anywhere on the page.
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of Array.from(items)) {
+        if (item.kind === "file" && item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            scan(file);
+            return;
+          }
+        }
+      }
+    }
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [scan]);
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -61,12 +87,12 @@ export default function Dropzone() {
           {l.festival ?? l.title}
         </p>
         <div className="flex items-center gap-4">
-          <a
+          <Link
             href={`/${l.slug}`}
             className="inline-flex items-center bg-acid px-4 py-2 font-mono text-sm font-bold uppercase text-ink"
           >
             ▶ open lineup
-          </a>
+          </Link>
           <button
             type="button"
             onClick={() => setStatus({ kind: "idle" })}
@@ -99,7 +125,7 @@ export default function Dropzone() {
           {busy ? "reading the poster…" : "drop a festival poster"}
         </span>
         <span className="font-mono text-xs uppercase tracking-widest text-muted">
-          {busy ? "this can take a moment" : "or tap to choose · jpeg, png, heic"}
+          {busy ? "this can take a moment" : "tap, drop, or paste · jpeg, png, heic"}
         </span>
       </button>
 

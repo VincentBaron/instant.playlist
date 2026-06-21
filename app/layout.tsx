@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, Space_Mono } from "next/font/google";
 import "./globals.css";
+import PlayerProvider from "@/components/player/PlayerProvider";
 
 // Display = the human-curated poster (festival name, artist names).
 const archivo = Archivo({
@@ -32,7 +33,8 @@ export default function RootLayout({
       className={`${archivo.variable} ${spaceMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-paper text-ink">
-        {children}
+        {/* mounted once — audio survives navigation */}
+        <PlayerProvider>{children}</PlayerProvider>
       </body>
     </html>
   );

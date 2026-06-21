@@ -3,6 +3,8 @@
  * (real resolve + save), then read back via list and by-slug, plus a 400 check.
  * Requires `npm run dev` to be up.
  */
+export {}; // module scope (no imports otherwise — avoids global redeclare collisions)
+
 const BASE = "http://localhost:3001";
 
 async function main() {

@@ -12,6 +12,7 @@ export const TrackSchema = z.object({
   url: z.string().url(), // SoundCloud permalink — drives the widget + the external link
   durationMin: z.number().int().nonnegative(), // rounded minutes
   artworkUrl: z.string().url().nullable(),
+  bpm: z.number().nullable().default(null), // BPM (explicit field or genre-inferred); null = unknown
 });
 export type Track = z.infer<typeof TrackSchema>;
 

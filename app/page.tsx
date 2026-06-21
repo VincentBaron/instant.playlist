@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Dropzone from "@/components/Dropzone";
 import { listLineups } from "@/lib/db";
 
@@ -8,7 +9,7 @@ export default async function Home() {
   const recent = await listLineups();
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-12 px-6 py-12 sm:py-16">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-12 px-6 py-12 pb-32 sm:py-16">
       {/* wordmark — mono, reads like a domain; ember dot = brand heartbeat */}
       <p className="font-mono text-sm tracking-tight text-ink">
         instant<span className="text-ember">.</span>playlist
@@ -37,7 +38,7 @@ export default async function Home() {
           <ul className="flex flex-col divide-y divide-line border-y border-line">
             {recent.map((l) => (
               <li key={l.slug}>
-                <a
+                <Link
                   href={`/${l.slug}`}
                   className="flex items-baseline justify-between gap-4 py-3 transition-colors hover:text-ember"
                 >
@@ -47,7 +48,7 @@ export default async function Home() {
                   <span className="shrink-0 font-mono text-xs uppercase tracking-widest text-muted">
                     {l.playableCount} playable
                   </span>
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
