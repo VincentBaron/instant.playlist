@@ -61,9 +61,9 @@ async function main() {
     playableCount: a.playableCount,
   });
 
-  // Same festival → slug must dedupe to "dour-2026-2"
+  // Same festival → UPSERT: same slug, no duplicate row
   const b = await saveLineup(artists, { festival: "Dour 2026" });
-  console.log("saved #2 (dedupe):", b.slug);
+  console.log("saved #2 (upsert, same slug):", b.slug);
 
   // No festival → title derived from artist names
   const c = await saveLineup(artists);
@@ -81,12 +81,13 @@ async function main() {
   const missing = await getLineupBySlug("does-not-exist");
   console.log("getLineupBySlug(missing) →", missing);
 
-  // Assertions (rerun-safe: don't hardcode exact suffixes, the DB may not be empty)
+  // Re-scanning the same festival upserts: same slug, and only one dour-2026 row.
+  const dourRows = list.filter((r) => r.slug === "dour-2026").length;
   const ok =
     a.playableCount === 3 &&
-    a.slug.startsWith("dour-2026") &&
-    b.slug !== a.slug &&
-    b.slug.startsWith("dour-2026") &&
+    a.slug === "dour-2026" &&
+    b.slug === a.slug && // upsert, not a numbered duplicate
+    dourRows === 1 && // exactly one canonical row
     fetched?.artists.length === 3 &&
     missing === null;
   console.log(`\n${ok ? "✓ M1 OK" : "✗ M1 FAILED"}`);

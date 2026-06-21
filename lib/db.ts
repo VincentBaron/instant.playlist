@@ -72,20 +72,6 @@ function countPlayable(artists: Artist[]): number {
   return artists.reduce((n, a) => n + (a.set ? 1 : a.topTracks.length), 0);
 }
 
-// Postgres unique-violation SQLSTATE is 23505. Drizzle wraps the driver error, so the
-// code can sit on the error itself or on its `cause` — check both.
-function isUniqueViolation(err: unknown): boolean {
-  const code = (e: unknown) =>
-    typeof e === "object" && e !== null && "code" in e
-      ? (e as { code?: string }).code
-      : undefined;
-  const cause =
-    typeof err === "object" && err !== null && "cause" in err
-      ? (err as { cause?: unknown }).cause
-      : undefined;
-  return code(err) === "23505" || code(cause) === "23505";
-}
-
 export type SaveLineupOpts = {
   title?: string;
   festival?: string | null;
@@ -94,9 +80,10 @@ export type SaveLineupOpts = {
 };
 
 /**
- * Persist a resolved lineup under a unique, deduped slug.
- * Slug collisions retry with `-2`, `-3`, … relying on the DB unique constraint as the
- * source of truth (also race-safe under concurrent inserts).
+ * Persist a resolved lineup. One canonical lineup per slug: the slug is the lineup's
+ * identity (the festival name, or a derived label), so re-scanning the same poster
+ * UPSERTS — it refreshes the existing lineup rather than creating a numbered duplicate
+ * in the public index. created_at is preserved across updates (first-seen wins).
  */
 export async function saveLineup(
   artists: Artist[],
@@ -105,33 +92,29 @@ export async function saveLineup(
   const validated = ArtistsSchema.parse(artists);
   const festival = opts.festival ?? null;
   const title = opts.title ?? deriveTitle(validated, festival);
-  const base = slugify(festival ?? title) || "lineup";
+  const slug = slugify(festival ?? title) || "lineup";
   const artistCount = validated.length;
   const playableCount = countPlayable(validated);
+  const officialTicketUrl = opts.officialTicketUrl ?? null;
 
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
-    try {
-      const [row] = await getDb()
-        .insert(lineups)
-        .values({
-          slug,
-          title,
-          festival,
-          officialTicketUrl: opts.officialTicketUrl ?? null,
-          artistCount,
-          playableCount,
-          artists: validated,
-          ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
-        })
-        .returning();
-      return toRecord(row);
-    } catch (err) {
-      if (isUniqueViolation(err)) continue; // slug taken — try the next suffix
-      throw err;
-    }
-  }
-  throw new Error(`could not generate a unique slug for "${base}"`);
+  const [row] = await getDb()
+    .insert(lineups)
+    .values({
+      slug,
+      title,
+      festival,
+      officialTicketUrl,
+      artistCount,
+      playableCount,
+      artists: validated,
+      ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
+    })
+    .onConflictDoUpdate({
+      target: lineups.slug,
+      set: { title, festival, officialTicketUrl, artistCount, playableCount, artists: validated },
+    })
+    .returning();
+  return toRecord(row);
 }
 
 /** Newest first, without the heavy artists blob — for the public index. */
