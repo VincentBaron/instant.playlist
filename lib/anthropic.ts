@@ -18,16 +18,28 @@ export type SupportedMediaType =
   | "image/webp"
   | "image/gif";
 
+export type ExtractedArtist = {
+  name: string;
+  setTime: string | null; // 24h "HH:MM" if the poster shows a slot time
+  setDay: string | null; // short day label, e.g. "Fri", if the poster groups by day
+};
+
 export type ExtractResult = {
   festival: string | null;
-  artists: string[];
+  artists: ExtractedArtist[];
 };
 
 // Shape the forced tool call must satisfy. We still validate the model's output
-// rather than trusting it blind.
+// rather than trusting it blind. time/day are optional — most posters are name-only.
 const SubmitArtistsSchema = z.object({
   festival: z.string().optional(),
-  artists: z.array(z.string()),
+  artists: z.array(
+    z.object({
+      name: z.string(),
+      time: z.string().optional(),
+      day: z.string().optional(),
+    }),
+  ),
 });
 
 const PROMPT = `You are reading a festival or club lineup poster. Extract the bill.
@@ -36,11 +48,16 @@ Rules:
 - List every artist exactly as written on the poster, preserving the poster's order
   (headliners first, down to the undercard).
 - Identify the festival/event name. If you are not confident, leave it blank.
-- Exclude anything that is not a performing act: days, dates, times, stage names,
-  venue names, sponsors, ticket info, taglines.
+- Exclude festival metadata from the artist list itself: dates, stage names, venue
+  names, sponsors, ticket info, taglines are NOT artists.
+- If — and only if — the poster is a timetable/schedule that shows when an act plays,
+  attach that act's start time as "time" in 24-hour "HH:MM" (convert "10:30 PM" → "22:30"),
+  and the day it plays as a short "day" label (e.g. "Fri", "Sat", "Day 1"). If a poster
+  is just a list of names with no schedule, omit time and day entirely — do not guess them.
 - Split true back-to-back / collaboration billings into separate artists ONLY when
   they are clearly distinct acts — separators like "b2b", "&", "x", "vs", "+", "×".
   When a name is a single act that happens to contain those characters, keep it whole.
+  (Two acts sharing one slot get the same time/day.)
 - Invent nothing. If you can't read a name, omit it rather than guessing.`;
 
 let cachedClient: Anthropic | null = null;
@@ -50,17 +67,39 @@ function getClient(): Anthropic {
   return cachedClient;
 }
 
-/** Trim, drop empties, dedupe case-insensitively while preserving first-seen order. */
-function cleanArtists(raw: string[]): string[] {
+/** Normalize a raw time string to 24h "HH:MM", or null if it isn't a usable time. */
+function normalizeTime(raw: string | undefined): string | null {
+  const t = raw?.trim();
+  if (!t) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return `${String(h).padStart(2, "0")}:${m[2]}`;
+}
+
+/**
+ * Trim, drop empties, dedupe case-insensitively while preserving first-seen order.
+ * The first occurrence of a name keeps its schedule (time/day) if present.
+ */
+function cleanArtists(
+  raw: Array<{ name: string; time?: string; day?: string }>,
+): ExtractedArtist[] {
   const seen = new Set<string>();
-  const out: string[] = [];
-  for (const name of raw) {
-    const trimmed = name.trim();
+  const out: ExtractedArtist[] = [];
+  for (const entry of raw) {
+    const trimmed = entry.name.trim();
     if (!trimmed) continue;
     const key = trimmed.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push(trimmed);
+    const day = entry.day?.trim();
+    out.push({
+      name: trimmed,
+      setTime: normalizeTime(entry.time),
+      setDay: day && day.length > 0 ? day : null,
+    });
   }
   return out;
 }
@@ -90,8 +129,28 @@ export async function extractArtists(
             },
             artists: {
               type: "array",
-              items: { type: "string" },
               description: "Every artist exactly as written, in poster order.",
+              items: {
+                type: "object",
+                properties: {
+                  name: {
+                    type: "string",
+                    description: "The artist name exactly as written.",
+                  },
+                  time: {
+                    type: "string",
+                    description:
+                      'Start time in 24h "HH:MM" if the poster is a schedule; omit otherwise.',
+                  },
+                  day: {
+                    type: "string",
+                    description:
+                      'Short day label (e.g. "Fri") if the poster groups acts by day; omit otherwise.',
+                  },
+                },
+                required: ["name"],
+                additionalProperties: false,
+              },
             },
           },
           required: ["artists"],

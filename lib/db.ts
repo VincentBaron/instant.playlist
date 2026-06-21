@@ -158,3 +158,38 @@ export async function getLineupBySlug(
     .limit(1);
   return row ? toRecord(row) : null;
 }
+
+/** One artist's schedule edit, keyed by position in the stored artists array. */
+export type ScheduleEdit = { index: number; setTime: string | null; setDay: string | null };
+
+/**
+ * Apply crowd-sourced set-time edits to a lineup's artists (anonymous, no auth in MVP).
+ * Edits are keyed by array index — the public page renders a stable index per artist.
+ * Re-parsing the merged array also backfills defaults (bpm/setTime/setDay) on older rows.
+ * Returns the updated record, or null if the slug doesn't exist.
+ */
+export async function updateLineupSchedule(
+  slug: string,
+  edits: ScheduleEdit[],
+): Promise<LineupRecord | null> {
+  const [existing] = await getDb()
+    .select()
+    .from(lineups)
+    .where(eq(lineups.slug, slug))
+    .limit(1);
+  if (!existing) return null;
+
+  const byIndex = new Map(edits.map((e) => [e.index, e]));
+  const merged = existing.artists.map((a, i) => {
+    const e = byIndex.get(i);
+    return e ? { ...a, setTime: e.setTime, setDay: e.setDay } : a;
+  });
+  const validated = ArtistsSchema.parse(merged);
+
+  const [row] = await getDb()
+    .update(lineups)
+    .set({ artists: validated })
+    .where(eq(lineups.slug, slug))
+    .returning();
+  return row ? toRecord(row) : null;
+}

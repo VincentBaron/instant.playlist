@@ -25,7 +25,15 @@ function minDurationMs(): number {
 }
 
 function emptyArtist(name: string): Artist {
-  return { name, profileUrl: null, username: null, set: null, topTracks: [] };
+  return {
+    name,
+    profileUrl: null,
+    username: null,
+    set: null,
+    topTracks: [],
+    setTime: null,
+    setDay: null,
+  };
 }
 
 async function findUser(name: string): Promise<SCUser | null> {
@@ -51,7 +59,9 @@ export async function resolveArtist(name: string): Promise<Artist> {
 
     // Prefer a long set; fall back to top tracks only when there's no set.
     const set = await getLatestSet(user.id, minDurationMs());
-    const artist: Artist = set
+    // setTime/setDay default to null here (ArtistSchema fills them); the pipeline
+    // overlays any poster-read schedule afterward, keyed by position.
+    const artist = set
       ? { ...base, set, topTracks: [] }
       : { ...base, set: null, topTracks: await getTopTracks(user.id, 3) };
 

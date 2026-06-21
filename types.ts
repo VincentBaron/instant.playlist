@@ -22,6 +22,9 @@ export const ArtistSchema = z.object({
   username: z.string().nullable(), // exact SoundCloud account name
   set: TrackSchema.nullable(), // latest long set (null if none)
   topTracks: z.array(TrackSchema), // fallback: top tracks when there's no long set
+  // Festival schedule slot — read off the poster (M2) or crowd-added later. null = unknown.
+  setTime: z.string().nullable().default(null), // 24h "HH:MM" start time
+  setDay: z.string().nullable().default(null), // short day label, e.g. "Fri"
 });
 export type Artist = z.infer<typeof ArtistSchema>;
 

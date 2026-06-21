@@ -38,7 +38,7 @@ async function main() {
   console.log("festival:", result.festival);
   console.log("artists:", result.artists);
 
-  const got = new Set(result.artists.map((a) => a.toLowerCase()));
+  const got = new Set(result.artists.map((a) => a.name.toLowerCase()));
   const missing = ARTISTS.filter((a) => !got.has(a.toLowerCase()));
   const festivalOk =
     !!result.festival && result.festival.toLowerCase().includes("verify festival");

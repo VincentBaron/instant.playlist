@@ -15,10 +15,19 @@ function bad(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
-/** Shared tail: resolve names → playable Artists → save under a slug → 201. */
-async function buildAndSave(names: string[], opts: SaveLineupOpts) {
-  if (names.length === 0) return bad("no artists could be read from the input", 422);
-  const artists = await resolveArtists(names); // never throws
+/** A name plus its optional festival schedule slot (from vision, or manual). */
+type LineupEntry = { name: string; setTime?: string | null; setDay?: string | null };
+
+/** Shared tail: resolve names → playable Artists → overlay schedule → save → 201. */
+async function buildAndSave(entries: LineupEntry[], opts: SaveLineupOpts) {
+  if (entries.length === 0) return bad("no artists could be read from the input", 422);
+  const resolved = await resolveArtists(entries.map((e) => e.name)); // never throws, order-preserving
+  // Overlay any poster-read schedule by position (resolveArtists preserves input order).
+  const artists = resolved.map((a, i) => ({
+    ...a,
+    setTime: entries[i].setTime ?? null,
+    setDay: entries[i].setDay ?? null,
+  }));
   const lineup = await saveLineup(artists, opts);
   return NextResponse.json({ lineup }, { status: 201 });
 }
@@ -43,6 +52,7 @@ async function handleUpload(req: Request) {
   // failure must not sink lineup creation (mirrors "resolvers never throw").
   const posterImage = await posterBackdropDataUrl(bytes).catch(() => null);
   const festivalField = form.get("festival");
+  // extracted.artists already carry setTime/setDay when the poster was a schedule.
   return buildAndSave(extracted.artists, {
     title: stringField(form.get("title")),
     festival: stringField(festivalField) ?? extracted.festival,
@@ -73,11 +83,14 @@ async function handleJson(req: Request) {
   const parsed = ArtistsRequest.safeParse(json);
   if (!parsed.success) return bad("body must be { artists: string[] }");
   const { artists, title, festival, officialTicketUrl } = parsed.data;
-  return buildAndSave(artists, {
-    title,
-    festival: festival ?? null,
-    officialTicketUrl: officialTicketUrl ?? null,
-  });
+  return buildAndSave(
+    artists.map((name) => ({ name })), // JSON dev path: names only, no schedule
+    {
+      title,
+      festival: festival ?? null,
+      officialTicketUrl: officialTicketUrl ?? null,
+    },
+  );
 }
 
 /**

@@ -19,6 +19,8 @@ const artists: Artist[] = [
       bpm: null,
     },
     topTracks: [],
+    setTime: null,
+    setDay: null,
   },
   {
     name: "JUJU",
@@ -41,6 +43,8 @@ const artists: Artist[] = [
         bpm: null,
       },
     ],
+    setTime: null,
+    setDay: null,
   },
   {
     name: "Unknown Act",
@@ -48,6 +52,8 @@ const artists: Artist[] = [
     username: null,
     set: null,
     topTracks: [],
+    setTime: null,
+    setDay: null,
   },
 ];
 
