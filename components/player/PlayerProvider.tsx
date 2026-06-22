@@ -46,6 +46,7 @@ export function usePlayer(): PlayerContextValue {
 interface SCWidget {
   bind(event: string, cb: (e?: { relativePosition?: number }) => void): void;
   load(url: string, opts: Record<string, unknown>): void;
+  play(): void;
   toggle(): void;
   seekTo(milliseconds: number): void;
   getPosition(cb: (milliseconds: number) => void): void;
@@ -112,7 +113,16 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     setIndex(i);
     setProgress(0);
     if (widgetRef.current) {
-      widgetRef.current.load(items[i].url, { auto_play: true });
+      // load()'s callback fires once the new set is actually ready — only THEN is
+      // play() guaranteed to take. `auto_play` alone is flaky on rapid skips and on
+      // mobile, leaving the set loaded-but-paused (the "doesn't start / pause-unpause
+      // a few times to get it going" bug). Driving play() from the callback is
+      // deterministic. setIsPlaying optimistically so the transport reflects intent.
+      setIsPlaying(true);
+      widgetRef.current.load(items[i].url, {
+        auto_play: true,
+        callback: () => widgetRef.current?.play(),
+      });
     } else {
       // No widget yet → render the iframe with this track; onLoad binds + autoplays.
       setInitialUrl(items[i].url);
