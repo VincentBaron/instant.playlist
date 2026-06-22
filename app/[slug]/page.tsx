@@ -73,7 +73,6 @@ export default async function LineupPage({
     // dark poster field + riso grain + community pattern — the hero surface
     <LineupCanvas
       slug={slug}
-      posterImage={lineup.posterImage}
       patterns={posted}
       initialPattern={initialPattern}
     >

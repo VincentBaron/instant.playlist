@@ -35,13 +35,11 @@ function samePattern(a: Pattern, b: Pattern): boolean {
 
 export default function LineupCanvas({
   slug,
-  posterImage,
   patterns,
   initialPattern,
   children,
 }: {
   slug: string;
-  posterImage: string | null;
   patterns: PatternPublic[];
   initialPattern: Pattern;
   children: ReactNode;
@@ -166,16 +164,6 @@ export default function LineupCanvas({
         className="pointer-events-none absolute inset-0 z-0 transition-[background] duration-500"
         style={{ background: `linear-gradient(165deg, ${applied.from} 0%, ${applied.to} 100%)` }}
       />
-      {posterImage && (
-        <>
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center opacity-20"
-            style={{ backgroundImage: `url(${posterImage})` }}
-          />
-          <div aria-hidden className="pointer-events-none absolute inset-0 z-0 bg-ink/55" />
-        </>
-      )}
 
       <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-6 py-12 pb-32 sm:py-16">
         {children}
