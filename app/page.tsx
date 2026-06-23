@@ -9,9 +9,9 @@ export default async function Home() {
   const recent = await listLineups();
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-12 px-6 py-12 pb-32 sm:py-16">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-12 bg-ink px-6 py-12 pb-32 text-paper min-h-svh sm:py-16">
       {/* wordmark — mono, reads like a domain; ember dot = brand heartbeat */}
-      <p className="font-mono text-sm tracking-tight text-ink">
+      <p className="font-mono text-sm tracking-tight text-paper">
         instant<span className="text-ember">.</span>playlist
       </p>
 

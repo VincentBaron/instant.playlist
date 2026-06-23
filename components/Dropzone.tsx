@@ -79,7 +79,7 @@ export default function Dropzone() {
   if (status.kind === "done") {
     const l = status.lineup;
     return (
-      <div className="flex flex-col gap-4 border border-line bg-white/40 p-6">
+      <div className="flex flex-col gap-4 border border-line bg-paper/10 p-6">
         <p className="font-mono text-xs uppercase tracking-widest text-muted">
           scanned · {l.artistCount} artists · {l.playableCount} playable
         </p>
@@ -118,7 +118,7 @@ export default function Dropzone() {
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={`flex min-h-44 flex-col items-center justify-center gap-2 border-2 border-dashed p-8 text-center transition-colors ${
-          dragging ? "border-acid bg-acid/10" : "border-line bg-white/30"
+          dragging ? "border-acid bg-acid/10" : "border-line bg-paper/10"
         } ${busy ? "opacity-60" : ""}`}
       >
         <span className="font-display text-2xl font-black uppercase leading-none">
