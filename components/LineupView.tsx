@@ -8,17 +8,16 @@ import { usePlayer, type QueueItem } from "@/components/player/PlayerProvider";
  * THE signature: the lineup IS a playable poster. Name size encodes the set's BPM
  * (faster = bigger). The playing name lights --acid with an --ember pulse.
  *
- * Sortable (BPM by default / poster billing / set time) and editable: an "edit times"
+ * Sortable (BPM by default / set time) and editable: an "edit times"
  * mode lets anyone at the festival add each act's slot — saved to the shared lineup.
  */
 
-type SortKey = "bpm" | "poster" | "time";
+type SortKey = "bpm" | "time";
 type Row = { artist: Artist; idx: number }; // idx = stable position in the stored array
 type Draft = { setTime: string; setDay: string };
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: "bpm", label: "BPM" },
-  { key: "poster", label: "Poster" },
   { key: "time", label: "Set time" },
 ];
 
@@ -45,8 +44,6 @@ function fontSizeFor(bpm: number | null): string {
 
 /** Order rows for display. Sorting never drops acts (set-time keeps untimed at the end). */
 function sortRows(rows: Row[], sort: SortKey): Row[] {
-  if (sort === "poster") return rows;
-
   if (sort === "bpm") {
     return [...rows].sort((a, b) => {
       const ba = artistBpm(a.artist);
@@ -282,7 +279,7 @@ export default function LineupView({ lineup }: { lineup: LineupRecord }) {
                   }
                   style={{ fontSize: fontSizeFor(bpm) }}
                   className={[
-                    "font-display font-black uppercase leading-[0.95] tracking-tight transition-colors",
+                    "relative inline-block font-display font-black uppercase leading-[0.95] tracking-tight transition-colors",
                     active
                       ? "text-acid"
                       : playable
@@ -292,13 +289,11 @@ export default function LineupView({ lineup }: { lineup: LineupRecord }) {
                 >
                   {artist.name}
                   {bpm != null && (
-                    // the machine's footnote: discreet, fixed-size BPM beside the name
-                    <span className="ml-2 align-middle font-mono text-xs font-normal text-muted/70">
-                      {bpm}
+                    // the machine's footnote: BPM, anchored to the right of the name
+                    // (absolute so it never shifts the centered name off-center).
+                    <span className="absolute left-full top-1/2 ml-2 flex -translate-y-1/2 items-center">
+                      <span className="font-mono text-xs font-normal text-muted/70">{bpm}</span>
                     </span>
-                  )}
-                  {active && (
-                    <span className="ml-2 inline-block h-2 w-2 rounded-full bg-ember align-middle motion-safe:animate-pulse" />
                   )}
                 </button>
                 {artist.setTime && (
