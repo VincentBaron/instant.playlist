@@ -29,6 +29,10 @@ export const lineups = pgTable("lineups", {
   playableCount: integer("playable_count").notNull(),
   artists: jsonb("artists").$type<Artist[]>().notNull(), // resolved Artist[]
   posterImage: text("poster_image"), // nullable: downscaled JPEG data URL for the faded backdrop
+  // "processing" while SoundCloud resolution runs in the background after upload;
+  // "ready" once resolved; "error" if that background step failed. Existing/JSON-path
+  // rows are saved "ready" directly (no background step to wait on).
+  status: text("status").notNull().default("ready"),
 });
 
 /*

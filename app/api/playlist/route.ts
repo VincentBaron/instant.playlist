@@ -1,9 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { extractArtists } from "@/lib/anthropic";
 import { normalizePoster, posterBackdropDataUrl } from "@/lib/image";
 import { resolveArtists } from "@/lib/resolve";
-import { saveLineup, type SaveLineupOpts } from "@/lib/db";
+import {
+  saveLineup,
+  finishLineupResolve,
+  setLineupStatus,
+  type SaveLineupOpts,
+} from "@/lib/db";
+import { ArtistSchema, type Artist } from "@/types";
 
 // Resolve fans out to SoundCloud — needs Node (not edge) and room to run.
 export const runtime = "nodejs";
@@ -32,7 +38,7 @@ async function buildAndSave(entries: LineupEntry[], opts: SaveLineupOpts) {
   return NextResponse.json({ lineup }, { status: 201 });
 }
 
-/** Poster upload (multipart) → normalize → vision → resolve → save. */
+/** Poster upload (multipart) → normalize → vision → save fast → resolve in the background. */
 async function handleUpload(req: Request) {
   const form = await req.formData();
   const poster = form.get("poster");
@@ -48,17 +54,51 @@ async function handleUpload(req: Request) {
   }
 
   const extracted = await extractArtists(imageBase64, "image/jpeg");
+  if (extracted.artists.length === 0) return bad("no artists could be read from the input", 422);
   // A dimmed copy of the poster becomes the share-page backdrop. Never fatal — a backdrop
   // failure must not sink lineup creation (mirrors "resolvers never throw").
   const posterImage = await posterBackdropDataUrl(bytes).catch(() => null);
   const festivalField = form.get("festival");
-  // extracted.artists already carry setTime/setDay when the poster was a schedule.
-  return buildAndSave(extracted.artists, {
+  const opts: SaveLineupOpts = {
     title: stringField(form.get("title")),
     festival: stringField(festivalField) ?? extracted.festival,
     officialTicketUrl: stringField(form.get("officialTicketUrl")) ?? null,
     posterImage,
+  };
+
+  // Save unresolved placeholders immediately — the lineup exists and is browsable
+  // right away, no SoundCloud lookups (the slow part) block the response.
+  const placeholders: Artist[] = extracted.artists.map((e) =>
+    ArtistSchema.parse({
+      name: e.name,
+      profileUrl: null,
+      username: null,
+      set: null,
+      topTracks: [],
+      setTime: e.setTime ?? null,
+      setDay: e.setDay ?? null,
+    }),
+  );
+  const lineup = await saveLineup(placeholders, { ...opts, status: "processing" });
+
+  // Resolve every artist's SoundCloud sets after the response is sent — this is what can
+  // take minutes for a big lineup, and the whole point is not to block on it.
+  after(async () => {
+    try {
+      const resolved = await resolveArtists(extracted.artists.map((e) => e.name));
+      const artists = resolved.map((a, i) => ({
+        ...a,
+        setTime: extracted.artists[i].setTime ?? null,
+        setDay: extracted.artists[i].setDay ?? null,
+      }));
+      await finishLineupResolve(lineup.slug, artists);
+    } catch (err) {
+      console.error(`background resolve failed for ${lineup.slug}:`, err);
+      await setLineupStatus(lineup.slug, "error").catch(() => {});
+    }
   });
+
+  return NextResponse.json({ lineup }, { status: 201 });
 }
 
 function stringField(v: FormDataEntryValue | null): string | undefined {

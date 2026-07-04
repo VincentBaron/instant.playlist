@@ -6,6 +6,7 @@ import {
   ArtistsSchema,
   type Artist,
   type LineupRecord,
+  type LineupStatus,
   type LineupSummary,
 } from "@/types";
 import { lineups, patterns, patternVotes } from "@/lib/schema";
@@ -47,6 +48,7 @@ function toRecord(row: LineupRow): LineupRecord {
     playableCount: row.playableCount,
     artists: row.artists,
     posterImage: row.posterImage,
+    status: row.status as LineupStatus,
   };
 }
 
@@ -81,6 +83,7 @@ export type SaveLineupOpts = {
   officialTicketUrl?: string | null;
   posterImage?: string | null;
   createdAt?: Date;
+  status?: LineupStatus; // defaults to "ready" — pass "processing" for the poster-upload fast path
 };
 
 /**
@@ -101,6 +104,7 @@ export async function saveLineup(
   const playableCount = countPlayable(validated);
   const officialTicketUrl = opts.officialTicketUrl ?? null;
   const posterImage = opts.posterImage ?? null;
+  const status = opts.status ?? "ready";
 
   const [row] = await getDb()
     .insert(lineups)
@@ -113,6 +117,7 @@ export async function saveLineup(
       playableCount,
       artists: validated,
       posterImage,
+      status,
       ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
     })
     .onConflictDoUpdate({
@@ -125,10 +130,42 @@ export async function saveLineup(
         playableCount,
         artists: validated,
         posterImage,
+        status,
       },
     })
     .returning();
   return toRecord(row);
+}
+
+/**
+ * Complete a poster upload's background resolve step: overlay the fully-resolved
+ * artists onto the already-saved (placeholder) lineup and flip it to "ready". Looked
+ * up by slug directly — no slug recomputation, so it can't drift from the placeholder row.
+ */
+export async function finishLineupResolve(
+  slug: string,
+  artists: Artist[],
+): Promise<LineupRecord | null> {
+  const validated = ArtistsSchema.parse(artists);
+  const [row] = await getDb()
+    .update(lineups)
+    .set({
+      artists: validated,
+      artistCount: validated.length,
+      playableCount: countPlayable(validated),
+      status: "ready",
+    })
+    .where(eq(lineups.slug, slug))
+    .returning();
+  return row ? toRecord(row) : null;
+}
+
+/** Flip a lineup's status (e.g. to "error" if the background resolve step blew up). */
+export async function setLineupStatus(
+  slug: string,
+  status: LineupStatus,
+): Promise<void> {
+  await getDb().update(lineups).set({ status }).where(eq(lineups.slug, slug));
 }
 
 /** Newest first, without the heavy artists blob — for the public index. */
@@ -143,10 +180,15 @@ export async function listLineups(): Promise<LineupSummary[]> {
       createdAt: lineups.createdAt,
       artistCount: lineups.artistCount,
       playableCount: lineups.playableCount,
+      status: lineups.status,
     })
     .from(lineups)
     .orderBy(desc(lineups.createdAt));
-  return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
+  return rows.map((r) => ({
+    ...r,
+    createdAt: r.createdAt.toISOString(),
+    status: r.status as LineupStatus,
+  }));
 }
 
 /** Public read for the shareable page. Returns null when the slug doesn't exist. */

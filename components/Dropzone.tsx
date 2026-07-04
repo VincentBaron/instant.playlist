@@ -1,48 +1,23 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { LineupRecord } from "@/types";
-
-const MAX_BYTES = 8 * 1024 * 1024;
-
-type Status =
-  | { kind: "idle" }
-  | { kind: "scanning" }
-  | { kind: "done"; lineup: LineupRecord }
-  | { kind: "error"; message: string };
+import { useUpload } from "@/components/upload/UploadProvider";
 
 export default function Dropzone() {
-  const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const { state, startUpload } = useUpload();
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const scanningRef = useRef(false); // guards against concurrent paste/drop/pick
-  const busy = status.kind === "scanning";
+  const busy = state.kind === "uploading";
 
-  const scan = useCallback(async (file: File) => {
-    if (scanningRef.current) return;
-    if (file.size > MAX_BYTES) {
-      setStatus({ kind: "error", message: "that image is over 8MB — try a smaller one" });
-      return;
-    }
-    scanningRef.current = true;
-    setStatus({ kind: "scanning" });
-    try {
-      const body = new FormData();
-      body.append("poster", file);
-      const res = await fetch("/api/playlist", { method: "POST", body });
-      const data = await res.json();
-      if (!res.ok) {
-        setStatus({ kind: "error", message: data.error ?? "something went wrong" });
-        return;
-      }
-      setStatus({ kind: "done", lineup: data.lineup });
-    } catch {
-      setStatus({ kind: "error", message: "couldn't reach the server" });
-    } finally {
-      scanningRef.current = false;
-    }
-  }, []);
+  // Vision (the fast part) runs here; once it kicks off the background resolve, this
+  // frees up immediately — the global upload pill (see UploadProvider) tracks the rest.
+  const scan = useCallback(
+    (file: File) => {
+      if (busy) return;
+      void startUpload(file);
+    },
+    [busy, startUpload],
+  );
 
   // Paste a poster screenshot straight in (Cmd/Ctrl+V) — anywhere on the page.
   useEffect(() => {
@@ -74,35 +49,6 @@ export default function Dropzone() {
     setDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) scan(file);
-  }
-
-  if (status.kind === "done") {
-    const l = status.lineup;
-    return (
-      <div className="flex flex-col gap-4 border border-line bg-white/40 p-6">
-        <p className="font-mono text-xs uppercase tracking-widest text-muted">
-          scanned · {l.artistCount} artists · {l.playableCount} playable
-        </p>
-        <p className="font-display text-3xl font-black uppercase leading-none">
-          {l.festival ?? l.title}
-        </p>
-        <div className="flex items-center gap-4">
-          <Link
-            href={`/${l.slug}`}
-            className="inline-flex items-center bg-acid px-4 py-2 font-mono text-sm font-bold uppercase text-ink"
-          >
-            ▶ open lineup
-          </Link>
-          <button
-            type="button"
-            onClick={() => setStatus({ kind: "idle" })}
-            className="font-mono text-xs uppercase tracking-widest text-muted underline"
-          >
-            scan another
-          </button>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -147,8 +93,8 @@ export default function Dropzone() {
         onChange={onPick}
       />
 
-      {status.kind === "error" && (
-        <p className="font-mono text-xs text-ember">{status.message}</p>
+      {state.kind === "error" && (
+        <p className="font-mono text-xs text-ember">{state.message}</p>
       )}
     </div>
   );

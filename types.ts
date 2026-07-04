@@ -30,6 +30,12 @@ export type Artist = z.infer<typeof ArtistSchema>;
 
 export const ArtistsSchema = z.array(ArtistSchema);
 
+/**
+ * "processing" = poster read, SoundCloud resolution running in the background;
+ * "ready" = fully resolved; "error" = background resolution failed.
+ */
+export type LineupStatus = "processing" | "ready" | "error";
+
 /** A stored lineup, fully hydrated (public read returns this). */
 export type LineupRecord = {
   id: number;
@@ -42,6 +48,7 @@ export type LineupRecord = {
   playableCount: number;
   artists: Artist[];
   posterImage: string | null; // dimmed poster backdrop (JPEG data URL); null for older/JSON lineups
+  status: LineupStatus;
 };
 
 /** Lightweight lineup row for the public index (no artists blob, no heavy poster data URL). */

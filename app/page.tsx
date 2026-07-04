@@ -46,7 +46,7 @@ export default async function Home() {
                     {l.festival ?? l.title}
                   </span>
                   <span className="shrink-0 font-mono text-xs uppercase tracking-widest text-muted">
-                    {l.playableCount} playable
+                    {l.status === "processing" ? "resolving sets…" : `${l.playableCount} playable`}
                   </span>
                 </Link>
               </li>

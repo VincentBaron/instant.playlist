@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import LineupView from "@/components/LineupView";
 import LineupCanvas from "@/components/LineupCanvas";
 import ShareControls from "@/components/ShareControls";
+import ProcessingWatcher from "@/components/ProcessingWatcher";
 import { getLineupBySlug, getTopPattern, listPatterns } from "@/lib/db";
 import { qrDataUrl } from "@/lib/qr";
 import { HOUSE_PATTERN, type Pattern } from "@/lib/themes";
@@ -77,6 +78,8 @@ export default async function LineupPage({
       patterns={posted}
       initialPattern={initialPattern}
     >
+      <ProcessingWatcher active={lineup.status === "processing"} />
+
       {/* top nav — an obvious way back to browse all lineups */}
       <nav>
           <Link
@@ -96,7 +99,14 @@ export default async function LineupPage({
             {name}
           </h1>
           <p className="font-mono text-xs uppercase tracking-widest text-paper/50">
-            {lineup.artistCount} artists · {lineup.playableCount} playable · tap a name
+            {lineup.status === "processing" ? (
+              <>
+                <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-ember align-middle motion-safe:animate-pulse" />
+                {lineup.artistCount} artists · resolving sets…
+              </>
+            ) : (
+              `${lineup.artistCount} artists · ${lineup.playableCount} playable · tap a name`
+            )}
           </p>
         </div>
 
