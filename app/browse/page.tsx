@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Wordmark from "@/components/Wordmark";
 import { listLineups } from "@/lib/db";
 
 // Same per-request DB read as the home teaser.
@@ -10,9 +11,7 @@ export default async function Browse() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-12 pb-32 sm:py-16">
       <header>
-        <p className="font-mono text-sm tracking-tight text-ink">
-          instant<span className="text-ember">.</span>playlist
-        </p>
+        <Wordmark className="font-mono text-sm tracking-tight text-ink" />
         <h1 className="mt-4 font-display text-4xl font-black uppercase leading-[0.92] tracking-tight">
           All lineups
         </h1>
