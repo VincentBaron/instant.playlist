@@ -1,12 +1,16 @@
 import Link from "next/link";
 import Dropzone from "@/components/Dropzone";
+import BrowseAllLink from "@/components/BrowseAllLink";
 import { listLineups } from "@/lib/db";
 
 // The recent index reads the DB per request.
 export const dynamic = "force-dynamic";
 
+const RECENT_LIMIT = 5;
+
 export default async function Home() {
   const recent = await listLineups();
+  const teaser = recent.slice(0, RECENT_LIMIT);
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-12 px-6 py-12 pb-32 sm:py-16">
@@ -36,7 +40,7 @@ export default async function Home() {
             recent lineups
           </h2>
           <ul className="flex flex-col divide-y divide-line border-y border-line">
-            {recent.map((l) => (
+            {teaser.map((l) => (
               <li key={l.slug}>
                 <Link
                   href={`/${l.slug}`}
@@ -55,6 +59,9 @@ export default async function Home() {
               </li>
             ))}
           </ul>
+          {recent.length > RECENT_LIMIT && (
+            <BrowseAllLink count={recent.length} />
+          )}
         </section>
       )}
     </main>
