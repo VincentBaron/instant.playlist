@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import LineupView from "@/components/LineupView";
 import LineupCanvas from "@/components/LineupCanvas";
 import ShareControls from "@/components/ShareControls";
+import { WordmarkText } from "@/components/Wordmark";
 import { getLineupBySlug, getTopPattern, listPatterns } from "@/lib/db";
 import { qrDataUrl } from "@/lib/qr";
 import { HOUSE_PATTERN, type Pattern } from "@/lib/themes";
@@ -84,7 +85,7 @@ export default async function LineupPage({
           >
             <span aria-hidden>←</span>
             <span>
-              instant<span className="text-ember">.</span>playlist
+              <WordmarkText />
             </span>
           </Link>
         </nav>
