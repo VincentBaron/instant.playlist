@@ -27,6 +27,7 @@ export const lineups = pgTable("lineups", {
     .defaultNow(),
   artistCount: integer("artist_count").notNull(),
   playableCount: integer("playable_count").notNull(),
+  genres: jsonb("genres").$type<string[]>().notNull().default([]), // ranked genre buckets, most-represented first
   artists: jsonb("artists").$type<Artist[]>().notNull(), // resolved Artist[]
   posterImage: text("poster_image"), // nullable: downscaled JPEG data URL for the faded backdrop
 });

@@ -13,6 +13,7 @@ export const TrackSchema = z.object({
   durationMin: z.number().int().nonnegative(), // rounded minutes
   artworkUrl: z.string().url().nullable(),
   bpm: z.number().nullable().default(null), // BPM (explicit field or genre-inferred); null = unknown
+  genre: z.string().nullable().default(null), // bucketed taxonomy label (lib/genre.ts); null = untagged
 });
 export type Track = z.infer<typeof TrackSchema>;
 
@@ -40,6 +41,7 @@ export type LineupRecord = {
   createdAt: string; // ISO string
   artistCount: number;
   playableCount: number;
+  genres: string[]; // ranked genre buckets (lib/genre.ts), most-represented first; [] = untagged
   artists: Artist[];
   posterImage: string | null; // dimmed poster backdrop (JPEG data URL); null for older/JSON lineups
 };

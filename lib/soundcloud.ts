@@ -1,5 +1,6 @@
 import type { Track } from "@/types";
 import { inferBpm } from "@/lib/bpm";
+import { inferGenre } from "@/lib/genre";
 
 /*
  * SoundCloud's INTERNAL api-v2 (unofficial — official API access is pending). All of
@@ -107,6 +108,7 @@ function toTrack(raw: SCRawTrack): Track {
     durationMin: Math.max(0, Math.round(ms / 60_000)),
     artworkUrl: typeof raw.artwork_url === "string" ? raw.artwork_url : null,
     bpm: inferBpm({ bpm: raw.bpm, genre: raw.genre, tagList: raw.tag_list }),
+    genre: inferGenre({ genre: raw.genre, tagList: raw.tag_list }),
   };
 }
 
