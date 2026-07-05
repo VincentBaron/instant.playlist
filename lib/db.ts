@@ -45,6 +45,7 @@ function toRecord(row: LineupRow): LineupRecord {
     createdAt: row.createdAt.toISOString(),
     artistCount: row.artistCount,
     playableCount: row.playableCount,
+    genres: row.genres,
     artists: row.artists,
     posterImage: row.posterImage,
   };
@@ -75,6 +76,21 @@ function countPlayable(artists: Artist[]): number {
   return artists.reduce((n, a) => n + (a.set ? 1 : a.topTracks.length), 0);
 }
 
+/**
+ * Rank genre buckets by how many artists' primary set falls in each (lib/genre.ts).
+ * Artists with no set, or whose set's genre didn't match the taxonomy, don't count
+ * toward any bucket — an empty result means the lineup is untagged, not "Other".
+ */
+export function deriveGenres(artists: Artist[]): string[] {
+  const counts = new Map<string, number>();
+  for (const a of artists) {
+    const genre = a.set?.genre;
+    if (!genre) continue;
+    counts.set(genre, (counts.get(genre) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([bucket]) => bucket);
+}
+
 export type SaveLineupOpts = {
   title?: string;
   festival?: string | null;
@@ -99,6 +115,7 @@ export async function saveLineup(
   const slug = slugify(festival ?? title) || "lineup";
   const artistCount = validated.length;
   const playableCount = countPlayable(validated);
+  const genres = deriveGenres(validated);
   const officialTicketUrl = opts.officialTicketUrl ?? null;
   const posterImage = opts.posterImage ?? null;
 
@@ -111,6 +128,7 @@ export async function saveLineup(
       officialTicketUrl,
       artistCount,
       playableCount,
+      genres,
       artists: validated,
       posterImage,
       ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
@@ -123,6 +141,7 @@ export async function saveLineup(
         officialTicketUrl,
         artistCount,
         playableCount,
+        genres,
         artists: validated,
         posterImage,
       },
@@ -143,10 +162,28 @@ export async function listLineups(): Promise<LineupSummary[]> {
       createdAt: lineups.createdAt,
       artistCount: lineups.artistCount,
       playableCount: lineups.playableCount,
+      genres: lineups.genres,
     })
     .from(lineups)
     .orderBy(desc(lineups.createdAt));
   return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
+}
+
+/** slug + artist names for every lineup — the backfill script's re-resolve worklist. */
+export async function listLineupsForGenreBackfill(): Promise<
+  { slug: string; artists: Artist[] }[]
+> {
+  return getDb()
+    .select({ slug: lineups.slug, artists: lineups.artists })
+    .from(lineups);
+}
+
+/** Overwrite just the denormalized `genres` column (used by the one-off backfill). */
+export async function updateLineupGenres(
+  slug: string,
+  genres: string[],
+): Promise<void> {
+  await getDb().update(lineups).set({ genres }).where(eq(lineups.slug, slug));
 }
 
 /** Public read for the shareable page. Returns null when the slug doesn't exist. */

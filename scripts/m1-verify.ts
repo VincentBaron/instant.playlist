@@ -17,6 +17,7 @@ const artists: Artist[] = [
       durationMin: 62,
       artworkUrl: null,
       bpm: null,
+      genre: null,
     },
     topTracks: [],
     setTime: null,
@@ -34,6 +35,7 @@ const artists: Artist[] = [
         durationMin: 6,
         artworkUrl: null,
         bpm: null,
+        genre: null,
       },
       {
         title: "JUJU — Live cut",
@@ -41,6 +43,7 @@ const artists: Artist[] = [
         durationMin: 8,
         artworkUrl: null,
         bpm: null,
+        genre: null,
       },
     ],
     setTime: null,

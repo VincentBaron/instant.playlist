@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3001",
-    "build": "next build",
+    "build": "drizzle-kit migrate && next build",
     "start": "next start --port 3001",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
@@ -15,7 +15,8 @@
     "resolve:verify": "tsx scripts/m3-verify.ts",
     "api:verify": "tsx scripts/m4-verify.ts",
     "upload:verify": "tsx scripts/m5-verify.ts",
-    "page:verify": "tsx scripts/m6-verify.ts"
+    "page:verify": "tsx scripts/m6-verify.ts",
+    "backfill:genres": "tsx scripts/backfill-genres.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",

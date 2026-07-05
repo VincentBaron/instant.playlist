@@ -45,7 +45,10 @@ export default async function Home() {
                   <span className="font-display text-lg font-bold uppercase leading-none">
                     {l.festival ?? l.title}
                   </span>
-                  <span className="shrink-0 font-mono text-xs uppercase tracking-widest text-muted">
+                  <span className="flex shrink-0 items-baseline gap-2 font-mono text-xs uppercase tracking-widest text-muted">
+                    {l.genres.length > 0 && (
+                      <span className="text-ink">{l.genres.slice(0, 2).join(" / ")}</span>
+                    )}
                     {l.playableCount} playable
                   </span>
                 </Link>

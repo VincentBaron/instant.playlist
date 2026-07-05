@@ -1,0 +1,1 @@
+ALTER TABLE "lineups" ADD COLUMN "genres" jsonb DEFAULT '[]'::jsonb NOT NULL;
