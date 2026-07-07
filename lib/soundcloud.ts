@@ -12,6 +12,18 @@ import { inferGenre } from "@/lib/genre";
  */
 const BASE = "https://api-v2.soundcloud.com";
 const REQUEST_TIMEOUT_MS = 10_000;
+const MAX_ATTEMPTS = 3; // one initial try + two retries
+const RETRY_BASE_DELAY_MS = 300;
+
+// Transient upstream statuses worth retrying — rate-limit and gateway/5xx blips. A wide
+// SoundCloud fan-out hits these under concurrency; a single miss must not permanently bake
+// a real artist into a lineup as "not found" (the bug behind YOL-37).
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+class RetryableError extends Error {}
+class NonRetryableError extends Error {}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Minimal shapes for the fields we actually read off the raw JSON.
 interface SCRawUser {
@@ -19,6 +31,8 @@ interface SCRawUser {
   username?: string;
   permalink_url?: string;
   kind?: string;
+  followers_count?: number; // popularity — breaks ties between same-named accounts
+  track_count?: number;
 }
 interface SCRawTrack {
   id: number;
@@ -41,6 +55,8 @@ export interface SCUser {
   id: number;
   username: string;
   permalinkUrl: string;
+  followersCount: number; // 0 when unknown; used only as a tie-breaker in candidate scoring
+  trackCount: number;
 }
 
 /** OAuth token may be stored as "2-..." or already prefixed "OAuth 2-...". */
@@ -52,15 +68,8 @@ function authHeader(): Record<string, string> {
   };
 }
 
-/** GET a full api-v2 URL as JSON. Ensures client_id is present (next_href omits it). */
-async function scGet(rawUrl: string): Promise<unknown> {
-  const clientId = process.env.SOUNDCLOUD_CLIENT_ID;
-  if (!clientId) throw new Error("SOUNDCLOUD_CLIENT_ID is not set");
-
-  const url = new URL(rawUrl);
-  if (!url.searchParams.has("client_id"))
-    url.searchParams.set("client_id", clientId);
-
+/** One HTTP attempt. Throws RetryableError for transient failures, plain Error otherwise. */
+async function scGetOnce(url: URL): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -74,11 +83,47 @@ async function scGet(rawUrl: string): Promise<unknown> {
       },
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`soundcloud ${res.status} for ${url.pathname}`);
+    if (!res.ok) {
+      const msg = `soundcloud ${res.status} for ${url.pathname}`;
+      throw RETRYABLE_STATUS.has(res.status)
+        ? new RetryableError(msg)
+        : new NonRetryableError(msg);
+    }
     return await res.json();
+  } catch (err) {
+    // Our own classified errors pass through; anything else (network TypeError, timeout
+    // AbortError, JSON parse) is a transient blip worth a retry.
+    if (err instanceof RetryableError || err instanceof NonRetryableError) throw err;
+    throw new RetryableError(err instanceof Error ? err.message : String(err));
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * GET a full api-v2 URL as JSON. Ensures client_id is present (next_href omits it) and
+ * retries transient failures (429/5xx/timeout) with linear back-off — resolvers upstream
+ * absorb the final throw, so a bad blip degrades to an empty Artist only after real retries.
+ */
+async function scGet(rawUrl: string): Promise<unknown> {
+  const clientId = process.env.SOUNDCLOUD_CLIENT_ID;
+  if (!clientId) throw new Error("SOUNDCLOUD_CLIENT_ID is not set");
+
+  const url = new URL(rawUrl);
+  if (!url.searchParams.has("client_id"))
+    url.searchParams.set("client_id", clientId);
+
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      return await scGetOnce(url);
+    } catch (err) {
+      lastErr = err;
+      if (!(err instanceof RetryableError) || attempt === MAX_ATTEMPTS) throw err;
+      await sleep(RETRY_BASE_DELAY_MS * attempt);
+    }
+  }
+  throw lastErr; // unreachable, keeps the type-checker happy
 }
 
 function scApi(
@@ -96,6 +141,8 @@ function toUser(raw: SCRawUser): SCUser | null {
     id: raw.id,
     username: raw.username ?? "",
     permalinkUrl: raw.permalink_url,
+    followersCount: raw.followers_count ?? 0,
+    trackCount: raw.track_count ?? 0,
   };
 }
 
@@ -112,28 +159,40 @@ function toTrack(raw: SCRawTrack): Track {
   };
 }
 
-async function searchUsers(q: string): Promise<SCUser | null> {
-  const data = (await scApi("/search/users", { q, limit: 1 })) as SCPage<SCRawUser>;
-  const first = data.collection?.[0];
-  return first ? toUser(first) : null;
+async function searchUsers(q: string, limit: number): Promise<SCUser[]> {
+  const data = (await scApi("/search/users", { q, limit })) as SCPage<SCRawUser>;
+  return (data.collection ?? []).map(toUser).filter((u): u is SCUser => u !== null);
 }
 
-/**
- * First user hit for a name. Tries the raw name, then a variant with bracketed
- * annotations stripped (e.g. "Artist (live)" → "Artist").
- */
-export async function searchArtist(name: string): Promise<SCUser | null> {
-  const direct = await searchUsers(name);
-  if (direct) return direct;
-
-  const stripped = name
+/** Drop bracketed annotations: "Artist (live)" / "Artist [b2b X]" → "Artist". */
+function stripAnnotations(name: string): string {
+  return name
     .replace(/[([{][^)\]}]*[)\]}]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  if (stripped && stripped.toLowerCase() !== name.toLowerCase()) {
-    return searchUsers(stripped);
+}
+
+/**
+ * Candidate accounts for a poster name — several hits, not just the top one, so the
+ * caller (lib/match.ts) can pick the account that actually matches the name instead of
+ * trusting SoundCloud's relevance blindly. Searches the raw name and, if different, a
+ * bracket-stripped variant, then de-dupes by account id.
+ */
+export async function searchArtistCandidates(
+  name: string,
+  limit = 8,
+): Promise<SCUser[]> {
+  const queries = [name];
+  const stripped = stripAnnotations(name);
+  if (stripped && stripped.toLowerCase() !== name.toLowerCase()) queries.push(stripped);
+
+  const byId = new Map<number, SCUser>();
+  for (const q of queries) {
+    for (const user of await searchUsers(q, limit)) {
+      if (!byId.has(user.id)) byId.set(user.id, user);
+    }
   }
-  return null;
+  return [...byId.values()];
 }
 
 /** Resolve a known SoundCloud profile URL straight to a user (for pinned overrides). */
