@@ -64,6 +64,9 @@ declare global {
 }
 
 const WIDGET_API = "https://w.soundcloud.com/player/api.js";
+// How long to ignore incoming PLAY_PROGRESS ticks after a seek — long enough to swallow
+// the one stale, pre-seek tick that's already in flight from the widget.
+const SEEK_GUARD_MS = 400;
 
 function widgetSrc(url: string): string {
   const params = new URLSearchParams({
@@ -97,6 +100,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [index, setIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [progress, setProgress] = useState(0); // 0..1
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
 
@@ -105,6 +109,30 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
   // Refs mirror state so the FINISH callback (bound once) sees live values.
   const queueRef = useRef<QueueItem[]>([]);
   const indexRef = useRef(0);
+  // Cached so seeks don't pay a getDuration round trip every time — refreshed per load.
+  const durationMsRef = useRef<number | null>(null);
+  // PLAY_PROGRESS ticks already in flight when a seek fires are stale; drop anything
+  // that arrives before this deadline instead of letting it snap the bar backward.
+  const seekGuardUntilRef = useRef(0);
+  // Bumped on every playAt(); a load() callback whose generation is stale (a newer
+  // skip superseded it) no-ops instead of racing play() on the wrong track.
+  const loadGenRef = useRef(0);
+  // Set to the confirmed-current generation once its track is actually ready. Until
+  // then, PLAY_PROGRESS ticks are dropped — otherwise a trailing tick from the track
+  // just skipped away from (still in flight over postMessage) repaints the bar back
+  // to its old, near-end position right after we've reset it to 0.
+  const progressGenRef = useRef(0);
+
+  const withDuration = useCallback((w: SCWidget, cb: (durationMs: number) => void) => {
+    if (durationMsRef.current != null) {
+      cb(durationMsRef.current);
+      return;
+    }
+    w.getDuration((d) => {
+      durationMsRef.current = d;
+      cb(d);
+    });
+  }, []);
 
   const playAt = useCallback((i: number) => {
     const items = queueRef.current;
@@ -112,6 +140,9 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     indexRef.current = i;
     setIndex(i);
     setProgress(0);
+    setIsBuffering(true);
+    durationMsRef.current = null;
+    const gen = ++loadGenRef.current;
     if (widgetRef.current) {
       // load()'s callback fires once the new set is actually ready — only THEN is
       // play() guaranteed to take. `auto_play` alone is flaky on rapid skips and on
@@ -121,7 +152,15 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
       setIsPlaying(true);
       widgetRef.current.load(items[i].url, {
         auto_play: true,
-        callback: () => widgetRef.current?.play(),
+        callback: () => {
+          if (loadGenRef.current !== gen) return; // superseded by a later skip — ignore
+          progressGenRef.current = gen; // this track is confirmed ready — trust its ticks
+          const w = widgetRef.current;
+          w?.play();
+          w?.getDuration((d) => {
+            durationMsRef.current = d;
+          });
+        },
       });
     } else {
       // No widget yet → render the iframe with this track; onLoad binds + autoplays.
@@ -134,8 +173,12 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     if (!SC || !iframeRef.current) return;
     const widget = SC.Widget(iframeRef.current);
     widgetRef.current = widget;
+    progressGenRef.current = loadGenRef.current; // the initial track is already confirmed by autoplay
     const E = SC.Widget.Events;
-    widget.bind(E.PLAY, () => setIsPlaying(true));
+    widget.bind(E.PLAY, () => {
+      setIsPlaying(true);
+      setIsBuffering(false);
+    });
     widget.bind(E.PAUSE, () => setIsPlaying(false));
     widget.bind(E.FINISH, () => {
       const nextIndex = indexRef.current + 1;
@@ -143,7 +186,12 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
       else setIsPlaying(false);
     });
     widget.bind(E.PLAY_PROGRESS, (e) => {
+      if (Date.now() < seekGuardUntilRef.current) return; // stale pre-seek tick
+      if (progressGenRef.current !== loadGenRef.current) return; // stale pre-skip tick
       if (e?.relativePosition != null) setProgress(e.relativePosition);
+    });
+    widget.getDuration((d) => {
+      durationMsRef.current = d;
     });
   }, [playAt]);
 
@@ -158,7 +206,14 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     [playAt],
   );
 
-  const toggle = useCallback(() => widgetRef.current?.toggle(), []);
+  const toggle = useCallback(() => {
+    const w = widgetRef.current;
+    if (!w) return;
+    // Flip immediately so the click feels instant; the bound PLAY/PAUSE events
+    // (postMessage round trip from the widget) reconcile this if the guess is wrong.
+    setIsPlaying((p) => !p);
+    w.toggle();
+  }, []);
   const next = useCallback(() => playAt(indexRef.current + 1), [playAt]);
   const prev = useCallback(() => playAt(indexRef.current - 1), [playAt]);
 
@@ -167,24 +222,37 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     (seconds: number) => {
       const w = widgetRef.current;
       if (!w) return;
-      w.getDuration((durationMs) => {
+      withDuration(w, (durationMs) => {
         w.getPosition((posMs) => {
           const target = posMs + seconds * 1000;
-          if (target >= durationMs) playAt(indexRef.current + 1);
-          else w.seekTo(Math.max(0, target));
+          if (target >= durationMs) {
+            playAt(indexRef.current + 1);
+            return;
+          }
+          const clampedTarget = Math.max(0, target);
+          seekGuardUntilRef.current = Date.now() + SEEK_GUARD_MS;
+          setProgress(clampedTarget / durationMs);
+          w.seekTo(clampedTarget);
         });
       });
     },
-    [playAt],
+    [playAt, withDuration],
   );
 
   // Tap the progress bar to land anywhere in the set (the mobile "jump").
-  const seekToFraction = useCallback((f: number) => {
-    const w = widgetRef.current;
-    if (!w) return;
-    const clamped = Math.max(0, Math.min(0.999, f));
-    w.getDuration((durationMs) => w.seekTo(clamped * durationMs));
-  }, []);
+  const seekToFraction = useCallback(
+    (f: number) => {
+      const w = widgetRef.current;
+      if (!w) return;
+      const clamped = Math.max(0, Math.min(0.999, f));
+      withDuration(w, (durationMs) => {
+        seekGuardUntilRef.current = Date.now() + SEEK_GUARD_MS;
+        setProgress(clamped);
+        w.seekTo(clamped * durationMs);
+      });
+    },
+    [withDuration],
+  );
 
   // Desktop: J jumps forward 30s, K back 30s. Ignore while typing in a field.
   useEffect(() => {
@@ -234,7 +302,19 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
         />
       )}
 
-      {current && <PlayerBar current={current} isPlaying={isPlaying} progress={progress} onToggle={toggle} onNext={next} onPrev={prev} onSeekBy={seekBy} onSeekFraction={seekToFraction} />}
+      {current && (
+        <PlayerBar
+          current={current}
+          isPlaying={isPlaying}
+          isBuffering={isBuffering}
+          progress={progress}
+          onToggle={toggle}
+          onNext={next}
+          onPrev={prev}
+          onSeekBy={seekBy}
+          onSeekFraction={seekToFraction}
+        />
+      )}
     </PlayerContext.Provider>
   );
 }
@@ -303,6 +383,7 @@ function TransportIcon({ playing }: { playing: boolean }) {
 function PlayerBar({
   current,
   isPlaying,
+  isBuffering,
   progress,
   onToggle,
   onNext,
@@ -312,6 +393,7 @@ function PlayerBar({
 }: {
   current: QueueItem;
   isPlaying: boolean;
+  isBuffering: boolean;
   progress: number;
   onToggle: () => void;
   onNext: () => void;
@@ -334,10 +416,10 @@ function PlayerBar({
         <div className="h-full bg-acid" style={{ width: `${Math.round(progress * 100)}%` }} />
       </button>
       <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
-        {/* ember pulse when live */}
+        {/* ember pulse when live; stays muted while buffering so it reads as "loading" */}
         <span
           className={`h-2 w-2 shrink-0 rounded-full ${
-            isPlaying ? "bg-ember motion-safe:animate-pulse" : "bg-muted"
+            isPlaying && !isBuffering ? "bg-ember motion-safe:animate-pulse" : "bg-muted"
           }`}
         />
         <div className="min-w-0 flex-1">
