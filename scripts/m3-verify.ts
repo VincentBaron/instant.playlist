@@ -2,43 +2,69 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { resolveArtists } from "@/lib/resolve";
+import { slugOf } from "@/lib/match";
 
 /*
  * Real end-to-end resolve check against the unofficial SoundCloud API.
- * Real DJs that should have long sets, plus a deliberate nonsense name that must
- * resolve to an empty, non-playable Artist WITHOUT throwing.
+ *
+ * A battery of real DJs, each with the SoundCloud handle we expect to resolve to — so we
+ * catch the YOL-37 failure mode (a real artist wrongly greyed out, or the wrong namesake
+ * picked), not just "something resolved". Includes "Voltery" (the reported bug) and a
+ * deliberate nonsense name that must resolve to an empty, non-playable Artist WITHOUT
+ * throwing.
+ *
+ * Requires .env.local with SOUNDCLOUD_CLIENT_ID / SOUNDCLOUD_OAUTH_TOKEN.
  */
-const BOGUS = "zzqwx nonexistent artist 9381";
-const NAMES = ["Amelie Lens", "Charlotte de Witte", "I Hate Models", BOGUS];
+interface Case {
+  name: string;
+  expectHandle: string | null; // expected SoundCloud slug; null = must stay unresolved
+}
+const CASES: Case[] = [
+  { name: "Voltery", expectHandle: "voltery" }, // the YOL-37 report (repost-only account)
+  { name: "Amelie Lens", expectHandle: "amelielens" },
+  { name: "Charlotte de Witte", expectHandle: "charlottedewittemusic" },
+  { name: "I Hate Models", expectHandle: "ihatemodels" },
+  { name: "zzqwx nonexistent artist 9381", expectHandle: null },
+];
 
 function playable(a: { set: unknown; topTracks: unknown[] }): boolean {
   return a.set !== null || a.topTracks.length > 0;
 }
 
 async function main() {
-  const artists = await resolveArtists(NAMES, { concurrency: 3 });
+  const artists = await resolveArtists(
+    CASES.map((c) => c.name),
+    { concurrency: 3 },
+  );
 
-  for (const a of artists) {
+  let failures = 0;
+  artists.forEach((a, i) => {
+    const c = CASES[i];
+    const handle = a.profileUrl ? slugOf(a.profileUrl) : null;
     const kind = a.set
       ? `set ${a.set.durationMin}min`
       : a.topTracks.length
         ? `${a.topTracks.length} top tracks`
         : "—";
+
+    let ok: boolean;
+    if (c.expectHandle === null) {
+      ok = handle === null && !playable(a); // must stay empty & non-playable
+    } else {
+      // right account AND actually playable (a set or top tracks — never greyed)
+      ok = handle === c.expectHandle && playable(a);
+    }
+    if (!ok) failures++;
+
     console.log(
-      `${a.name.padEnd(26)} ${a.username ? "@" + a.username : "(unresolved)"}  ${kind}`,
+      `${ok ? "✓" : "✗"} ${c.name.padEnd(28)} @${(handle ?? "unresolved").padEnd(20)} ${kind}` +
+        (c.expectHandle && handle !== c.expectHandle ? `  (expected @${c.expectHandle})` : ""),
     );
-  }
+  });
 
-  const order = artists.map((a) => a.name).join("|") === NAMES.join("|");
-  const bogus = artists[artists.length - 1];
-  const bogusEmpty = !playable(bogus) && bogus.profileUrl === null;
-  const realPlayable = artists.slice(0, 3).filter(playable).length;
-
-  console.log(
-    `\norder preserved: ${order} · bogus empty: ${bogusEmpty} · real playable: ${realPlayable}/3`,
-  );
-  // At least one real DJ should resolve to something playable; bogus must be empty.
-  const ok = order && bogusEmpty && realPlayable >= 1;
+  const order = artists.map((a) => a.name).join("|") === CASES.map((c) => c.name).join("|");
+  console.log(`\norder preserved: ${order} · failures: ${failures}`);
+  const ok = order && failures === 0;
   console.log(`${ok ? "✓ M3 OK" : "✗ M3 FAILED"}`);
   process.exit(ok ? 0 : 1);
 }
