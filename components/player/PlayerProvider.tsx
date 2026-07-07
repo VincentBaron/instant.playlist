@@ -117,6 +117,11 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
   // Bumped on every playAt(); a load() callback whose generation is stale (a newer
   // skip superseded it) no-ops instead of racing play() on the wrong track.
   const loadGenRef = useRef(0);
+  // Set to the confirmed-current generation once its track is actually ready. Until
+  // then, PLAY_PROGRESS ticks are dropped — otherwise a trailing tick from the track
+  // just skipped away from (still in flight over postMessage) repaints the bar back
+  // to its old, near-end position right after we've reset it to 0.
+  const progressGenRef = useRef(0);
 
   const withDuration = useCallback((w: SCWidget, cb: (durationMs: number) => void) => {
     if (durationMsRef.current != null) {
@@ -149,6 +154,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
         auto_play: true,
         callback: () => {
           if (loadGenRef.current !== gen) return; // superseded by a later skip — ignore
+          progressGenRef.current = gen; // this track is confirmed ready — trust its ticks
           const w = widgetRef.current;
           w?.play();
           w?.getDuration((d) => {
@@ -167,6 +173,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     if (!SC || !iframeRef.current) return;
     const widget = SC.Widget(iframeRef.current);
     widgetRef.current = widget;
+    progressGenRef.current = loadGenRef.current; // the initial track is already confirmed by autoplay
     const E = SC.Widget.Events;
     widget.bind(E.PLAY, () => {
       setIsPlaying(true);
@@ -180,6 +187,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     });
     widget.bind(E.PLAY_PROGRESS, (e) => {
       if (Date.now() < seekGuardUntilRef.current) return; // stale pre-seek tick
+      if (progressGenRef.current !== loadGenRef.current) return; // stale pre-skip tick
       if (e?.relativePosition != null) setProgress(e.relativePosition);
     });
     widget.getDuration((d) => {
