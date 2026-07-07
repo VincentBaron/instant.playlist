@@ -1,8 +1,6 @@
 import { ArtistSchema, type Artist } from "@/types";
 import {
-  getLatestRepostSet,
   getLatestSet,
-  getTopReposts,
   getTopTracks,
   resolveUser,
   searchArtistCandidates,
@@ -68,14 +66,12 @@ async function chooseUser(name: string): Promise<Chosen | null> {
 }
 
 /**
- * Build a playable Artist from a chosen account. Fallback ladder, best first:
- *   1. the artist's own latest long set
- *   2. a long set they've *reposted* (many DJs upload nothing and repost the sets they
- *      play — the YOL-37 case: 0 own tracks looked "not found" despite reposted sets)
- *   3. their own top tracks
- *   4. their most recent reposted tracks
- * Each step is independently guarded: a blip fetching one never discards the resolved
- * account, which is how real artists were being greyed out.
+ * Build a playable Artist from a chosen account. Prefers the artist's own latest long
+ * set, else their own top tracks. An account with no tracks of its own stays greyed out
+ * (non-playable) by design — we deliberately do NOT surface reposts, so we only ever play
+ * a set the artist actually made. Each fetch is independently guarded: a blip fetching the
+ * set only forfeits the set (we still try top tracks) — it never discards the resolved
+ * account, which is how real artists were being wrongly greyed.
  */
 async function hydrate(name: string, user: SCUser): Promise<Artist> {
   const base = {
@@ -83,16 +79,9 @@ async function hydrate(name: string, user: SCUser): Promise<Artist> {
     profileUrl: user.permalinkUrl,
     username: user.username || null,
   };
-  const min = minDurationMs();
 
-  let set = await getLatestSet(user.id, min).catch(() => null);
-  if (!set) set = await getLatestRepostSet(user.id, min).catch(() => null);
-
-  let topTracks: Awaited<ReturnType<typeof getTopTracks>> = [];
-  if (!set) {
-    topTracks = await getTopTracks(user.id, 3).catch(() => []);
-    if (topTracks.length === 0) topTracks = await getTopReposts(user.id, 3).catch(() => []);
-  }
+  const set = await getLatestSet(user.id, minDurationMs()).catch(() => null);
+  const topTracks = set ? [] : await getTopTracks(user.id, 3).catch(() => []);
 
   // Validate the shape before handing it on; a parse failure degrades to empty.
   return ArtistSchema.parse({ ...base, set, topTracks });

@@ -18,13 +18,16 @@ import { slugOf } from "@/lib/match";
 interface Case {
   name: string;
   expectHandle: string | null; // expected SoundCloud slug; null = must stay unresolved
+  expectPlayable: boolean; // whether the artist must have a playable set/tracks of their own
 }
 const CASES: Case[] = [
-  { name: "Voltery", expectHandle: "voltery" }, // the YOL-37 report (repost-only account)
-  { name: "Amelie Lens", expectHandle: "amelielens" },
-  { name: "Charlotte de Witte", expectHandle: "charlottedewittemusic" },
-  { name: "I Hate Models", expectHandle: "ihatemodels" },
-  { name: "zzqwx nonexistent artist 9381", expectHandle: null },
+  // Voltery only reposts other DJs' sets (0 own tracks) — resolves to the right account
+  // but stays greyed out, because we deliberately never play reposts (YOL-37 feedback).
+  { name: "Voltery", expectHandle: "voltery", expectPlayable: false },
+  { name: "Amelie Lens", expectHandle: "amelielens", expectPlayable: true },
+  { name: "Charlotte de Witte", expectHandle: "charlottedewittemusic", expectPlayable: true },
+  { name: "I Hate Models", expectHandle: "ihatemodels", expectPlayable: true },
+  { name: "zzqwx nonexistent artist 9381", expectHandle: null, expectPlayable: false },
 ];
 
 function playable(a: { set: unknown; topTracks: unknown[] }): boolean {
@@ -47,18 +50,17 @@ async function main() {
         ? `${a.topTracks.length} top tracks`
         : "—";
 
-    let ok: boolean;
-    if (c.expectHandle === null) {
-      ok = handle === null && !playable(a); // must stay empty & non-playable
-    } else {
-      // right account AND actually playable (a set or top tracks — never greyed)
-      ok = handle === c.expectHandle && playable(a);
-    }
+    // Right account (or deliberately unresolved) AND the expected playable/greyed state.
+    const ok = handle === c.expectHandle && playable(a) === c.expectPlayable;
     if (!ok) failures++;
 
+    const note = !ok
+      ? `  (expected @${c.expectHandle ?? "unresolved"}, ${c.expectPlayable ? "playable" : "greyed"})`
+      : c.expectPlayable
+        ? ""
+        : "  (greyed by design)";
     console.log(
-      `${ok ? "✓" : "✗"} ${c.name.padEnd(28)} @${(handle ?? "unresolved").padEnd(20)} ${kind}` +
-        (c.expectHandle && handle !== c.expectHandle ? `  (expected @${c.expectHandle})` : ""),
+      `${ok ? "✓" : "✗"} ${c.name.padEnd(28)} @${(handle ?? "unresolved").padEnd(20)} ${kind}${note}`,
     );
   });
 
