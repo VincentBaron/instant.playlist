@@ -4,11 +4,23 @@ import { useState } from "react";
 import { emailOtp, signIn } from "@/lib/auth-client";
 
 /*
- * Sign-in card. Google OAuth one-tap (the mobile-first path) plus an email one-time-code
- * fallback so the flow works without Google keys. `googleEnabled` is passed from the
- * server (is GOOGLE_CLIENT_ID set?) so we don't show a button that can't work.
+ * Just-in-time account capture. Shown AFTER a poster is dropped, not as a homepage wall —
+ * so the ask lands when intent is highest ("give us your email, here's your lineup").
+ * Email one-time-code is the primary path (keeps the pending scan on this page so it can
+ * auto-continue on verify); Google is offered as a secondary one-tap. `googleEnabled` is
+ * passed from the server (is GOOGLE_CLIENT_ID set?) so we don't show a dead button.
  */
-export default function SignIn({ googleEnabled }: { googleEnabled: boolean }) {
+export default function SignIn({
+  googleEnabled,
+  title = "sign in to scan",
+  subtitle = "3 free poster scans — no card needed",
+  onCancel,
+}: {
+  googleEnabled: boolean;
+  title?: string;
+  subtitle?: string;
+  onCancel?: () => void;
+}) {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [stage, setStage] = useState<"email" | "code">("email");
@@ -46,35 +58,27 @@ export default function SignIn({ googleEnabled }: { googleEnabled: boolean }) {
       setError(error.message ?? "that code didn't work");
       return;
     }
-    // On success better-auth sets the session cookie; useSession re-renders the app.
+    // On success better-auth sets the session cookie; useSession re-renders and the
+    // Dropzone auto-continues the pending scan.
   }
 
   return (
     <div className="flex flex-col gap-4 border border-line bg-white/40 p-6">
       <div className="flex flex-col gap-1">
         <p className="font-display text-2xl font-black uppercase leading-none">
-          sign in to scan
+          {title}
         </p>
         <p className="font-mono text-xs uppercase tracking-widest text-muted">
-          3 free poster scans — no card needed
+          {subtitle}
         </p>
       </div>
-
-      {googleEnabled && (
-        <button
-          type="button"
-          onClick={google}
-          className="inline-flex items-center justify-center bg-ink px-4 py-3 font-mono text-sm font-bold uppercase text-paper transition-opacity hover:opacity-90"
-        >
-          continue with google
-        </button>
-      )}
 
       {stage === "email" ? (
         <form onSubmit={sendCode} className="flex flex-col gap-2">
           <input
             type="email"
             required
+            autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@email.com"
@@ -83,7 +87,7 @@ export default function SignIn({ googleEnabled }: { googleEnabled: boolean }) {
           <button
             type="submit"
             disabled={busy}
-            className="inline-flex items-center justify-center border border-ink px-4 py-2 font-mono text-sm font-bold uppercase text-ink transition-colors hover:bg-ink hover:text-paper disabled:opacity-60"
+            className="inline-flex items-center justify-center bg-acid px-4 py-2 font-mono text-sm font-bold uppercase text-ink disabled:opacity-60"
           >
             {busy ? "sending…" : "email me a code"}
           </button>
@@ -94,6 +98,7 @@ export default function SignIn({ googleEnabled }: { googleEnabled: boolean }) {
             inputMode="numeric"
             autoComplete="one-time-code"
             required
+            autoFocus
             value={otp}
             onChange={(e) => setOtp(e.target.value)}
             placeholder="6-digit code"
@@ -104,7 +109,7 @@ export default function SignIn({ googleEnabled }: { googleEnabled: boolean }) {
             disabled={busy}
             className="inline-flex items-center justify-center bg-acid px-4 py-2 font-mono text-sm font-bold uppercase text-ink disabled:opacity-60"
           >
-            {busy ? "checking…" : "verify & sign in"}
+            {busy ? "checking…" : "verify & get my lineup"}
           </button>
           <button
             type="button"
@@ -120,7 +125,27 @@ export default function SignIn({ googleEnabled }: { googleEnabled: boolean }) {
         </form>
       )}
 
+      {googleEnabled && (
+        <button
+          type="button"
+          onClick={google}
+          className="inline-flex items-center justify-center border border-ink px-4 py-2 font-mono text-sm font-bold uppercase text-ink transition-colors hover:bg-ink hover:text-paper"
+        >
+          or continue with google
+        </button>
+      )}
+
       {error && <p className="font-mono text-xs text-ember">{error}</p>}
+
+      {onCancel && (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="self-start font-mono text-xs uppercase tracking-widest text-muted underline"
+        >
+          ← back
+        </button>
+      )}
     </div>
   );
 }
