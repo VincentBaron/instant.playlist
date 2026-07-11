@@ -48,7 +48,7 @@ export default async function LineupPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ p?: string }>;
+  searchParams: Promise<{ p?: string; play?: string }>;
 }) {
   const { slug } = await params;
   const lineup = await getLineupBySlug(slug);
@@ -61,7 +61,9 @@ export default async function LineupPage({
   // The default look is the top-voted community pattern (or the house default). A `?p=<id>`
   // link focuses a specific posted pattern so a remix can be shared at its exact colors.
   const [posted, top] = await Promise.all([listPatterns(slug), getTopPattern(slug)]);
-  const { p } = await searchParams;
+  const { p, play } = await searchParams;
+  // Arriving from a scattered home-page name (?play=1) → start the first set on load.
+  const autoPlay = play === "1";
   const focusId = p ? Number(p) : NaN;
   const chosen =
     (Number.isFinite(focusId) ? posted.find((x) => x.id === focusId) : undefined) ??
@@ -102,7 +104,7 @@ export default async function LineupPage({
 
         {/* the playable poster */}
         <div className="flex flex-1 items-center justify-center">
-          <LineupView lineup={lineup} />
+          <LineupView lineup={lineup} autoPlay={autoPlay} />
         </div>
 
         {/* ticket CTA (only when a verified official URL exists) + share + QR */}
