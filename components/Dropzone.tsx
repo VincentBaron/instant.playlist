@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LineupRecord } from "@/types";
+import { useSession } from "@/lib/auth-client";
+import Paywall from "@/components/Paywall";
+import SignIn from "@/components/SignIn";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
@@ -10,14 +13,51 @@ type Status =
   | { kind: "idle" }
   | { kind: "scanning" }
   | { kind: "done"; lineup: LineupRecord }
+  | { kind: "paywall"; message?: string }
   | { kind: "error"; message: string };
 
-export default function Dropzone() {
+export default function Dropzone({ googleEnabled }: { googleEnabled: boolean }) {
+  const { data: session, isPending } = useSession();
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [credits, setCredits] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scanningRef = useRef(false); // guards against concurrent paste/drop/pick
   const busy = status.kind === "scanning";
+  const signedIn = !!session;
+
+  // Pull the live balance once signed in (and after a Stripe return — see below).
+  const refreshCredits = useCallback(async () => {
+    try {
+      const res = await fetch("/api/me");
+      const data = await res.json();
+      if (data.authenticated) setCredits(data.credits);
+    } catch {
+      /* non-fatal: the badge just won't show */
+    }
+  }, []);
+
+  useEffect(() => {
+    // Load the balance once we know the user is signed in. refreshCredits only setState()s
+    // after an async fetch resolves (not synchronously), so this can't cascade-render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async data fetch, not a sync setState
+    if (signedIn) refreshCredits();
+  }, [signedIn, refreshCredits]);
+
+  // Buy Me a Coffee opens in a new tab; coming back to this one re-reads the balance so a
+  // just-granted purchase shows up without a manual refresh.
+  useEffect(() => {
+    if (!signedIn) return;
+    function onFocus() {
+      if (document.visibilityState === "visible") refreshCredits();
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [signedIn, refreshCredits]);
 
   const scan = useCallback(async (file: File) => {
     if (scanningRef.current) return;
@@ -32,10 +72,15 @@ export default function Dropzone() {
       body.append("poster", file);
       const res = await fetch("/api/playlist", { method: "POST", body });
       const data = await res.json();
+      if (res.status === 402) {
+        setStatus({ kind: "paywall" });
+        return;
+      }
       if (!res.ok) {
         setStatus({ kind: "error", message: data.error ?? "something went wrong" });
         return;
       }
+      if (typeof data.credits === "number") setCredits(data.credits);
       setStatus({ kind: "done", lineup: data.lineup });
     } catch {
       setStatus({ kind: "error", message: "couldn't reach the server" });
@@ -46,6 +91,7 @@ export default function Dropzone() {
 
   // Paste a poster screenshot straight in (Cmd/Ctrl+V) — anywhere on the page.
   useEffect(() => {
+    if (!signedIn) return;
     function onPaste(e: ClipboardEvent) {
       const items = e.clipboardData?.items;
       if (!items) return;
@@ -62,7 +108,7 @@ export default function Dropzone() {
     }
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [scan]);
+  }, [scan, signedIn]);
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -74,6 +120,18 @@ export default function Dropzone() {
     setDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) scan(file);
+  }
+
+  // Signed out (or still resolving the session) → the sign-in gate is the only entry point.
+  if (isPending) {
+    return <div className="min-h-44 border-2 border-dashed border-line bg-white/30" />;
+  }
+  if (!signedIn) {
+    return <SignIn googleEnabled={googleEnabled} />;
+  }
+
+  if (status.kind === "paywall") {
+    return <Paywall message={status.message} />;
   }
 
   if (status.kind === "done") {
@@ -107,6 +165,19 @@ export default function Dropzone() {
 
   return (
     <div className="flex flex-col gap-3">
+      {credits !== null && (
+        <p className="font-mono text-xs uppercase tracking-widest text-muted">
+          {credits > 0 ? (
+            <>
+              <span className="text-ink">{credits}</span> scan
+              {credits === 1 ? "" : "s"} left
+            </>
+          ) : (
+            <span className="text-ember">no scans left — buy credits below</span>
+          )}
+        </p>
+      )}
+
       <button
         type="button"
         disabled={busy}
@@ -150,6 +221,8 @@ export default function Dropzone() {
       {status.kind === "error" && (
         <p className="font-mono text-xs text-ember">{status.message}</p>
       )}
+
+      {credits === 0 && <Paywall />}
     </div>
   );
 }

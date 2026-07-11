@@ -29,6 +29,13 @@
       "when": 1783243057854,
       "tag": "0003_romantic_polaris",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783770838401,
+      "tag": "0004_auth_and_credits",
+      "breakpoints": true
     }
   ]
 }

@@ -18,10 +18,12 @@
     "api:verify": "tsx scripts/m4-verify.ts",
     "upload:verify": "tsx scripts/m5-verify.ts",
     "page:verify": "tsx scripts/m6-verify.ts",
-    "backfill:genres": "tsx scripts/backfill-genres.ts"
+    "backfill:genres": "tsx scripts/backfill-genres.ts",
+    "grant:credits": "tsx scripts/grant-credits.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
+    "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2",
     "next": "16.2.9",
     "postgres": "^3.4.9",

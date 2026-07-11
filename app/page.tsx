@@ -1,11 +1,17 @@
 import Link from "next/link";
 import Dropzone from "@/components/Dropzone";
+import AuthPanel from "@/components/AuthPanel";
 import BrowseAllLink from "@/components/BrowseAllLink";
 import Wordmark from "@/components/Wordmark";
 import { listLineups } from "@/lib/db";
 
 // The recent index reads the DB per request.
 export const dynamic = "force-dynamic";
+
+// Only offer the Google button when its credentials are configured (email OTP always works).
+const googleEnabled = Boolean(
+  process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
+);
 
 const RECENT_LIMIT = 5;
 
@@ -16,7 +22,10 @@ export default async function Home() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-12 px-6 py-12 pb-32 sm:py-16">
       {/* wordmark — mono, reads like a domain; ember dot = brand heartbeat */}
-      <Wordmark className="font-mono text-sm tracking-tight text-ink" />
+      <div className="flex items-center justify-between gap-4">
+        <Wordmark className="font-mono text-sm tracking-tight text-ink" />
+        <AuthPanel />
+      </div>
 
       {/* the human-curated poster voice — Archivo, big */}
       <header>
@@ -31,7 +40,7 @@ export default async function Home() {
         </p>
       </header>
 
-      <Dropzone />
+      <Dropzone googleEnabled={googleEnabled} />
 
       {recent.length > 0 && (
         <section className="flex flex-col gap-3">

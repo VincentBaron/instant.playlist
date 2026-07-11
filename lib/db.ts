@@ -8,7 +8,7 @@ import {
   type LineupRecord,
   type LineupSummary,
 } from "@/types";
-import { lineups, patterns, patternVotes } from "@/lib/schema";
+import { creditLedger, lineups, patterns, patternVotes, user } from "@/lib/schema";
 import { clampGrain, type Pattern } from "@/lib/themes";
 
 /*
@@ -23,7 +23,7 @@ const globalForDb = globalThis as unknown as {
   _db?: ReturnType<typeof drizzle>;
 };
 
-function getDb() {
+export function getDb() {
   if (!globalForDb._db) {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL is not set");
@@ -97,6 +97,7 @@ export type SaveLineupOpts = {
   officialTicketUrl?: string | null;
   posterImage?: string | null;
   createdAt?: Date;
+  ownerId?: string | null; // who scanned it; set on first insert only (re-scans don't transfer ownership)
 };
 
 /**
@@ -131,6 +132,7 @@ export async function saveLineup(
       genres,
       artists: validated,
       posterImage,
+      ownerId: opts.ownerId ?? null,
       ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
     })
     .onConflictDoUpdate({
@@ -231,6 +233,119 @@ export async function updateLineupSchedule(
     .where(eq(lineups.slug, slug))
     .returning();
   return row ? toRecord(row) : null;
+}
+
+/* ── Credits ──────────────────────────────────────────────────────────────────────
+ * Balance = SUM(delta) over a user's ledger rows (lib/schema.ts). Every mutation is one
+ * append-only row; nothing is ever updated in place. See the schema comment for reasons.
+ */
+
+/** Free scans granted once per account. Env-overridable; defaults to 3. */
+export const FREE_CREDITS = Math.max(0, Number(process.env.FREE_CREDITS ?? 3) || 0);
+
+// Accepts the pool db or a transaction handle (same query-builder surface).
+type DbOrTx =
+  | ReturnType<typeof getDb>
+  | Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
+
+/** Sum a user's ledger (coalesce so a user with no rows reads 0, not null). */
+async function sumBalance(db: DbOrTx, userId: string): Promise<number> {
+  const [row] = await db
+    .select({
+      total: sql<string>`coalesce(sum(${creditLedger.delta}), 0)`,
+    })
+    .from(creditLedger)
+    .where(eq(creditLedger.userId, userId));
+  return Number(row?.total ?? 0);
+}
+
+/**
+ * Grant the free quota exactly once. The unique `idempotencyKey` ('signup:<userId>')
+ * makes this a safe no-op on every call after the first — so we can lazily call it the
+ * first time we ever need a user's balance, with no signup hook to keep in sync.
+ */
+export async function ensureSignupGrant(userId: string): Promise<void> {
+  if (FREE_CREDITS <= 0) return;
+  await getDb()
+    .insert(creditLedger)
+    .values({
+      userId,
+      delta: FREE_CREDITS,
+      reason: "signup_free",
+      idempotencyKey: `signup:${userId}`,
+    })
+    .onConflictDoNothing({ target: creditLedger.idempotencyKey });
+}
+
+/** A user's spendable balance (grants the free quota on first read). */
+export async function getBalance(userId: string): Promise<number> {
+  await ensureSignupGrant(userId);
+  return sumBalance(getDb(), userId);
+}
+
+/**
+ * Reserve one credit for a scan. Serialized per user by a transaction-scoped advisory
+ * lock (hashtext(userId)), so two concurrent uploads can't both spend the last credit.
+ * Returns the new balance on success, or ok:false with the unchanged balance when the
+ * user is out of credits (the caller turns that into a 402 → paywall).
+ */
+export async function spendCredit(
+  userId: string,
+): Promise<{ ok: boolean; balance: number }> {
+  await ensureSignupGrant(userId);
+  return getDb().transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
+    const balance = await sumBalance(tx, userId);
+    if (balance <= 0) return { ok: false, balance };
+    await tx.insert(creditLedger).values({
+      userId,
+      delta: -1,
+      reason: "poster_upload",
+    });
+    return { ok: true, balance: balance - 1 };
+  });
+}
+
+/** Give back a reserved credit when the scan it paid for failed (unreadable / error). */
+export async function refundCredit(userId: string): Promise<void> {
+  await getDb()
+    .insert(creditLedger)
+    .values({ userId, delta: 1, reason: "refund" });
+}
+
+/**
+ * Credit a completed purchase. `idempotencyKey` (e.g. 'bmc:<paymentId>') dedupes the
+ * grant so at-least-once webhook retries never double-credit. Returns true only when a
+ * row was actually inserted (false = already granted, a safe no-op).
+ */
+export async function addPurchaseCredits(
+  userId: string,
+  credits: number,
+  idempotencyKey: string,
+): Promise<boolean> {
+  const inserted = await getDb()
+    .insert(creditLedger)
+    .values({
+      userId,
+      delta: credits,
+      reason: "purchase",
+      idempotencyKey,
+    })
+    .onConflictDoNothing({ target: creditLedger.idempotencyKey })
+    .returning({ id: creditLedger.id });
+  return inserted.length > 0;
+}
+
+/** Look up a user by email (case-insensitive) — the join key for BMC purchase grants. */
+export async function getUserByEmail(
+  email: string,
+): Promise<{ id: string; email: string } | null> {
+  const [row] = await getDb()
+    .select({ id: user.id, email: user.email })
+    .from(user)
+    .where(sql`lower(${user.email}) = lower(${email})`)
+    .limit(1);
+  return row ?? null;
 }
 
 /* ── Community patterns ─────────────────────────────────────────────────────────────
