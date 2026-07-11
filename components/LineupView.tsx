@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Artist, LineupRecord } from "@/types";
 import { usePlayer, type QueueItem } from "@/components/player/PlayerProvider";
 
@@ -97,7 +97,13 @@ function buildQueue(rows: Row[]): BuiltQueue {
   return { items, firstIndexByIdx };
 }
 
-export default function LineupView({ lineup }: { lineup: LineupRecord }) {
+export default function LineupView({
+  lineup,
+  autoPlay = false,
+}: {
+  lineup: LineupRecord;
+  autoPlay?: boolean;
+}) {
   const player = usePlayer();
   // Local source of truth so crowd edits show instantly without a full page reload.
   const [artists, setArtists] = useState<Artist[]>(lineup.artists);
@@ -120,6 +126,19 @@ export default function LineupView({ lineup }: { lineup: LineupRecord }) {
     if (!playingUrl) return false;
     return a.set ? a.set.url === playingUrl : a.topTracks.some((t) => t.url === playingUrl);
   };
+
+  // Autoplay-on-arrival: a scattered home-page name links here with ?play=1 so the first
+  // set starts on load. Fires once (ref guard), and only if this lineup isn't already the
+  // active queue — so back-navigation with the param still present doesn't restart it.
+  // items[0] is the first *playable* act in the displayed (BPM) order.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStarted.current || !autoPlay || items.length === 0) return;
+    if (player.queueId === lineup.slug) return;
+    autoStarted.current = true;
+    player.playQueue(lineup.slug, items, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay]);
 
   function startEditing() {
     const next: Record<number, Draft> = {};
