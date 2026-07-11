@@ -21,9 +21,9 @@ export default async function Home() {
       {/* the human-curated poster voice — Archivo, big */}
       <header>
         <h1 className="font-display text-5xl font-black uppercase leading-[0.92] tracking-tight sm:text-6xl">
-          Hear the lineup.
-          <br />
           Point at any poster.
+          <br />
+          Hear the lineup.
         </h1>
         <p className="mt-4 max-w-md font-mono text-sm leading-relaxed text-muted">
           Scan a festival poster → a public, shareable page that plays the whole
