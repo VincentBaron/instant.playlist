@@ -3,6 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { getDb } from "@/lib/db";
+import { sendEmail } from "@/lib/email";
 import { account, session, user, verification } from "@/lib/schema";
 
 /*
@@ -34,18 +35,16 @@ export const auth = betterAuth({
       : {},
   plugins: [
     emailOTP({
-      // MVP has no email transport wired. We log the code to stdout so the flow is
-      // exercisable in dev ONLY — an OTP is a bearer auth credential, so it must never
-      // hit logs in production. Replace this with a real email sender before launch.
-      // (Google OAuth needs no code path here.)
+      // Delivery is handled by lib/email.ts: real provider (Resend) when configured,
+      // dev log otherwise, and a hard failure in production if nothing is set up — so an
+      // OTP (a bearer credential) is never silently dropped or leaked to prod logs.
       sendVerificationOTP: async ({ email, otp }) => {
-        if (process.env.NODE_ENV === "production") {
-          console.error(
-            `[auth] no email transport configured — cannot deliver OTP to ${email}`,
-          );
-          throw new Error("email delivery is not configured");
-        }
-        console.log(`[auth] email OTP for ${email}: ${otp}`);
+        await sendEmail({
+          to: email,
+          subject: "Your instant.playlist sign-in code",
+          text: `Your instant.playlist sign-in code is ${otp}\n\nIt expires in 5 minutes. If you didn't request this, you can ignore this email.`,
+          html: `<p>Your instant.playlist sign-in code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:2px">${otp}</p><p>It expires in 5 minutes. If you didn't request this, you can ignore this email.</p>`,
+        });
       },
     }),
     // Must be last: bridges better-auth's Set-Cookie into Next's cookie store so
