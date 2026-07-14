@@ -122,6 +122,13 @@ export default function SignIn({
           >
             use a different email
           </button>
+          {/* In dev there's usually no email provider — the code is printed to the
+              server terminal (Next inlines NODE_ENV, so this never ships to prod). */}
+          {process.env.NODE_ENV !== "production" && (
+            <p className="font-mono text-[11px] leading-relaxed text-muted">
+              dev mode: no email is sent — grab the code from your server terminal.
+            </p>
+          )}
         </form>
       )}
 
