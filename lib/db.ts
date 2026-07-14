@@ -27,10 +27,58 @@ export function getDb() {
   if (!globalForDb._db) {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL is not set");
-    globalForDb._sql = postgres(url);
+    globalForDb._sql = postgres(url, {
+      // Serverless-friendly (Vercel/Fly). `prepare: false` is REQUIRED when DATABASE_URL
+      // points at a transaction pooler (Supabase/pgBouncer, Neon pooled endpoint) —
+      // prepared statements aren't supported there and every query 500s ("works locally,
+      // fails on Vercel"). Harmless on a direct connection. One connection per invocation,
+      // released quickly, so we don't exhaust the pool across cold starts.
+      prepare: false,
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 15,
+    });
     globalForDb._db = drizzle(globalForDb._sql);
   }
   return globalForDb._db;
+}
+
+/*
+ * Runtime safety net: create the auth + credit tables if a deploy didn't run migrations
+ * (e.g. a Vercel build whose Build Command was overridden to `next build`, skipping
+ * `drizzle-kit migrate`). Idempotent — every statement is IF NOT EXISTS, and an advisory
+ * lock serializes concurrent cold starts so two instances can't race on the same DDL.
+ * Runs at most once per process; a no-op when the migration already applied. DDL mirrors
+ * drizzle/0004_auth_and_credits.sql — keep them in sync.
+ */
+const ENSURE_SCHEMA_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "user" ("id" text PRIMARY KEY NOT NULL, "name" text NOT NULL, "email" text NOT NULL, "email_verified" boolean DEFAULT false NOT NULL, "image" text, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL, CONSTRAINT "user_email_unique" UNIQUE("email"))`,
+  `CREATE TABLE IF NOT EXISTS "session" ("id" text PRIMARY KEY NOT NULL, "expires_at" timestamp NOT NULL, "token" text NOT NULL, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL, "ip_address" text, "user_agent" text, "user_id" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE, CONSTRAINT "session_token_unique" UNIQUE("token"))`,
+  `CREATE TABLE IF NOT EXISTS "account" ("id" text PRIMARY KEY NOT NULL, "account_id" text NOT NULL, "provider_id" text NOT NULL, "user_id" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE, "access_token" text, "refresh_token" text, "id_token" text, "access_token_expires_at" timestamp, "refresh_token_expires_at" timestamp, "scope" text, "password" text, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS "verification" ("id" text PRIMARY KEY NOT NULL, "identifier" text NOT NULL, "value" text NOT NULL, "expires_at" timestamp NOT NULL, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS "credit_ledger" ("id" serial PRIMARY KEY NOT NULL, "user_id" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE, "delta" integer NOT NULL, "reason" text NOT NULL, "idempotency_key" text, "created_at" timestamp with time zone DEFAULT now() NOT NULL, CONSTRAINT "credit_ledger_idempotency_key_unique" UNIQUE("idempotency_key"))`,
+  `CREATE INDEX IF NOT EXISTS "credit_ledger_user_id_idx" ON "credit_ledger" ("user_id")`,
+  `ALTER TABLE "lineups" ADD COLUMN IF NOT EXISTS "owner_id" text`,
+];
+
+let schemaReady: Promise<void> | null = null;
+
+export function ensureSchema(): Promise<void> {
+  if (!schemaReady) {
+    schemaReady = getDb()
+      .transaction(async (tx) => {
+        // 4927 = arbitrary constant lock id; serializes DDL across concurrent cold starts.
+        await tx.execute(sql`select pg_advisory_xact_lock(4927)`);
+        for (const stmt of ENSURE_SCHEMA_STATEMENTS) {
+          await tx.execute(sql.raw(stmt));
+        }
+      })
+      .catch((err) => {
+        schemaReady = null; // let the next request retry rather than caching the failure
+        throw err;
+      });
+  }
+  return schemaReady;
 }
 
 type LineupRow = typeof lineups.$inferSelect;
@@ -110,6 +158,7 @@ export async function saveLineup(
   artists: Artist[],
   opts: SaveLineupOpts = {},
 ): Promise<LineupRecord> {
+  await ensureSchema(); // owner_id column must exist even if migrations didn't run
   const validated = ArtistsSchema.parse(artists);
   const festival = opts.festival ?? null;
   const title = opts.title ?? deriveTitle(validated, festival);
@@ -266,6 +315,7 @@ async function sumBalance(db: DbOrTx, userId: string): Promise<number> {
  */
 export async function ensureSignupGrant(userId: string): Promise<void> {
   if (FREE_CREDITS <= 0) return;
+  await ensureSchema(); // credit_ledger must exist even if migrations didn't run
   await getDb()
     .insert(creditLedger)
     .values({
@@ -323,6 +373,7 @@ export async function addPurchaseCredits(
   credits: number,
   idempotencyKey: string,
 ): Promise<boolean> {
+  await ensureSchema();
   const inserted = await getDb()
     .insert(creditLedger)
     .values({
@@ -340,6 +391,7 @@ export async function addPurchaseCredits(
 export async function getUserByEmail(
   email: string,
 ): Promise<{ id: string; email: string } | null> {
+  await ensureSchema();
   const [row] = await getDb()
     .select({ id: user.id, email: user.email })
     .from(user)
