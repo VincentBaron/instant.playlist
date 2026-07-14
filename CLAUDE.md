@@ -50,14 +50,28 @@ respect `prefers-reduced-motion`. PWA: ship the web manifest only; **no service 
 - `npm run dev` — dev server on **:3001**
 - `npm run build` / `npm run start` / `npm run lint`
 
-## Environment (server-side only; never expose to client)
+## Environment (server-side only unless prefixed NEXT_PUBLIC_)
 ```
 ANTHROPIC_API_KEY=          # vision
 SOUNDCLOUD_CLIENT_ID=       # SoundCloud API
 SOUNDCLOUD_OAUTH_TOKEN=     # "2-..." or "OAuth 2-..."
 DATABASE_URL=               # hosted Postgres / Turso
 SET_MIN_DURATION_MIN=20     # optional; "set vs single" threshold
+# Auth + credits (YOL-49): gate uploads behind an account; 3 free scans, then buy more.
+BETTER_AUTH_SECRET=         # random 32+ char secret
+BETTER_AUTH_URL=            # app origin (e.g. http://localhost:3001)
+GOOGLE_CLIENT_ID=           # optional; Google one-tap (email OTP works without it)
+GOOGLE_CLIENT_SECRET=       # optional
+FREE_CREDITS=3              # optional; free scans per account (default 3)
+RESEND_API_KEY=             # email OTP delivery (Resend); required in prod for email sign-in
+EMAIL_FROM=                 # verified sender for OTP emails, e.g. "instant.playlist <hey@dom>"
+NEXT_PUBLIC_BMC_URL=        # Buy Me a Coffee page (paywall link)
+NEXT_PUBLIC_PRICE_PER_SCAN_CENTS=50  # optional; flat price of 1 scan (default 50)
+BMC_WEBHOOK_SECRET=         # verifies the HMAC on /api/bmc/webhook (auto-grants credits)
 ```
+Paywall = Buy Me a Coffee (no in-app checkout). The webhook matches a supporter's **email**
+to their account and grants `floor(amount / price-per-scan)` credits, idempotent on the BMC
+payment id. Fallback for unmatched/manual grants: `npm run grant:credits -- <email> <n>`.
 
 ## Working with Claude (the model)
 This app uses **Claude vision** for poster reading. Before editing the vision module, consult the

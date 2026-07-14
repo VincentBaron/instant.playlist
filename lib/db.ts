@@ -8,7 +8,7 @@ import {
   type LineupRecord,
   type LineupSummary,
 } from "@/types";
-import { lineups, patterns, patternVotes } from "@/lib/schema";
+import { creditLedger, lineups, patterns, patternVotes, user } from "@/lib/schema";
 import { clampGrain, type Pattern } from "@/lib/themes";
 
 /*
@@ -23,14 +23,62 @@ const globalForDb = globalThis as unknown as {
   _db?: ReturnType<typeof drizzle>;
 };
 
-function getDb() {
+export function getDb() {
   if (!globalForDb._db) {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL is not set");
-    globalForDb._sql = postgres(url);
+    globalForDb._sql = postgres(url, {
+      // Serverless-friendly (Vercel/Fly). `prepare: false` is REQUIRED when DATABASE_URL
+      // points at a transaction pooler (Supabase/pgBouncer, Neon pooled endpoint) —
+      // prepared statements aren't supported there and every query 500s ("works locally,
+      // fails on Vercel"). Harmless on a direct connection. One connection per invocation,
+      // released quickly, so we don't exhaust the pool across cold starts.
+      prepare: false,
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 15,
+    });
     globalForDb._db = drizzle(globalForDb._sql);
   }
   return globalForDb._db;
+}
+
+/*
+ * Runtime safety net: create the auth + credit tables if a deploy didn't run migrations
+ * (e.g. a Vercel build whose Build Command was overridden to `next build`, skipping
+ * `drizzle-kit migrate`). Idempotent — every statement is IF NOT EXISTS, and an advisory
+ * lock serializes concurrent cold starts so two instances can't race on the same DDL.
+ * Runs at most once per process; a no-op when the migration already applied. DDL mirrors
+ * drizzle/0004_auth_and_credits.sql — keep them in sync.
+ */
+const ENSURE_SCHEMA_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "user" ("id" text PRIMARY KEY NOT NULL, "name" text NOT NULL, "email" text NOT NULL, "email_verified" boolean DEFAULT false NOT NULL, "image" text, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL, CONSTRAINT "user_email_unique" UNIQUE("email"))`,
+  `CREATE TABLE IF NOT EXISTS "session" ("id" text PRIMARY KEY NOT NULL, "expires_at" timestamp NOT NULL, "token" text NOT NULL, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL, "ip_address" text, "user_agent" text, "user_id" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE, CONSTRAINT "session_token_unique" UNIQUE("token"))`,
+  `CREATE TABLE IF NOT EXISTS "account" ("id" text PRIMARY KEY NOT NULL, "account_id" text NOT NULL, "provider_id" text NOT NULL, "user_id" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE, "access_token" text, "refresh_token" text, "id_token" text, "access_token_expires_at" timestamp, "refresh_token_expires_at" timestamp, "scope" text, "password" text, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS "verification" ("id" text PRIMARY KEY NOT NULL, "identifier" text NOT NULL, "value" text NOT NULL, "expires_at" timestamp NOT NULL, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS "credit_ledger" ("id" serial PRIMARY KEY NOT NULL, "user_id" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE, "delta" integer NOT NULL, "reason" text NOT NULL, "idempotency_key" text, "created_at" timestamp with time zone DEFAULT now() NOT NULL, CONSTRAINT "credit_ledger_idempotency_key_unique" UNIQUE("idempotency_key"))`,
+  `CREATE INDEX IF NOT EXISTS "credit_ledger_user_id_idx" ON "credit_ledger" ("user_id")`,
+  `ALTER TABLE "lineups" ADD COLUMN IF NOT EXISTS "owner_id" text`,
+];
+
+let schemaReady: Promise<void> | null = null;
+
+export function ensureSchema(): Promise<void> {
+  if (!schemaReady) {
+    schemaReady = getDb()
+      .transaction(async (tx) => {
+        // 4927 = arbitrary constant lock id; serializes DDL across concurrent cold starts.
+        await tx.execute(sql`select pg_advisory_xact_lock(4927)`);
+        for (const stmt of ENSURE_SCHEMA_STATEMENTS) {
+          await tx.execute(sql.raw(stmt));
+        }
+      })
+      .catch((err) => {
+        schemaReady = null; // let the next request retry rather than caching the failure
+        throw err;
+      });
+  }
+  return schemaReady;
 }
 
 type LineupRow = typeof lineups.$inferSelect;
@@ -97,6 +145,7 @@ export type SaveLineupOpts = {
   officialTicketUrl?: string | null;
   posterImage?: string | null;
   createdAt?: Date;
+  ownerId?: string | null; // who scanned it; set on first insert only (re-scans don't transfer ownership)
 };
 
 /**
@@ -109,6 +158,7 @@ export async function saveLineup(
   artists: Artist[],
   opts: SaveLineupOpts = {},
 ): Promise<LineupRecord> {
+  await ensureSchema(); // owner_id column must exist even if migrations didn't run
   const validated = ArtistsSchema.parse(artists);
   const festival = opts.festival ?? null;
   const title = opts.title ?? deriveTitle(validated, festival);
@@ -131,6 +181,7 @@ export async function saveLineup(
       genres,
       artists: validated,
       posterImage,
+      ownerId: opts.ownerId ?? null,
       ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
     })
     .onConflictDoUpdate({
@@ -231,6 +282,122 @@ export async function updateLineupSchedule(
     .where(eq(lineups.slug, slug))
     .returning();
   return row ? toRecord(row) : null;
+}
+
+/* ── Credits ──────────────────────────────────────────────────────────────────────
+ * Balance = SUM(delta) over a user's ledger rows (lib/schema.ts). Every mutation is one
+ * append-only row; nothing is ever updated in place. See the schema comment for reasons.
+ */
+
+/** Free scans granted once per account. Env-overridable; defaults to 3. */
+export const FREE_CREDITS = Math.max(0, Number(process.env.FREE_CREDITS ?? 3) || 0);
+
+// Accepts the pool db or a transaction handle (same query-builder surface).
+type DbOrTx =
+  | ReturnType<typeof getDb>
+  | Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
+
+/** Sum a user's ledger (coalesce so a user with no rows reads 0, not null). */
+async function sumBalance(db: DbOrTx, userId: string): Promise<number> {
+  const [row] = await db
+    .select({
+      total: sql<string>`coalesce(sum(${creditLedger.delta}), 0)`,
+    })
+    .from(creditLedger)
+    .where(eq(creditLedger.userId, userId));
+  return Number(row?.total ?? 0);
+}
+
+/**
+ * Grant the free quota exactly once. The unique `idempotencyKey` ('signup:<userId>')
+ * makes this a safe no-op on every call after the first — so we can lazily call it the
+ * first time we ever need a user's balance, with no signup hook to keep in sync.
+ */
+export async function ensureSignupGrant(userId: string): Promise<void> {
+  if (FREE_CREDITS <= 0) return;
+  await ensureSchema(); // credit_ledger must exist even if migrations didn't run
+  await getDb()
+    .insert(creditLedger)
+    .values({
+      userId,
+      delta: FREE_CREDITS,
+      reason: "signup_free",
+      idempotencyKey: `signup:${userId}`,
+    })
+    .onConflictDoNothing({ target: creditLedger.idempotencyKey });
+}
+
+/** A user's spendable balance (grants the free quota on first read). */
+export async function getBalance(userId: string): Promise<number> {
+  await ensureSignupGrant(userId);
+  return sumBalance(getDb(), userId);
+}
+
+/**
+ * Reserve one credit for a scan. Serialized per user by a transaction-scoped advisory
+ * lock (hashtext(userId)), so two concurrent uploads can't both spend the last credit.
+ * Returns the new balance on success, or ok:false with the unchanged balance when the
+ * user is out of credits (the caller turns that into a 402 → paywall).
+ */
+export async function spendCredit(
+  userId: string,
+): Promise<{ ok: boolean; balance: number }> {
+  await ensureSignupGrant(userId);
+  return getDb().transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
+    const balance = await sumBalance(tx, userId);
+    if (balance <= 0) return { ok: false, balance };
+    await tx.insert(creditLedger).values({
+      userId,
+      delta: -1,
+      reason: "poster_upload",
+    });
+    return { ok: true, balance: balance - 1 };
+  });
+}
+
+/** Give back a reserved credit when the scan it paid for failed (unreadable / error). */
+export async function refundCredit(userId: string): Promise<void> {
+  await getDb()
+    .insert(creditLedger)
+    .values({ userId, delta: 1, reason: "refund" });
+}
+
+/**
+ * Credit a completed purchase. `idempotencyKey` (e.g. 'bmc:<paymentId>') dedupes the
+ * grant so at-least-once webhook retries never double-credit. Returns true only when a
+ * row was actually inserted (false = already granted, a safe no-op).
+ */
+export async function addPurchaseCredits(
+  userId: string,
+  credits: number,
+  idempotencyKey: string,
+): Promise<boolean> {
+  await ensureSchema();
+  const inserted = await getDb()
+    .insert(creditLedger)
+    .values({
+      userId,
+      delta: credits,
+      reason: "purchase",
+      idempotencyKey,
+    })
+    .onConflictDoNothing({ target: creditLedger.idempotencyKey })
+    .returning({ id: creditLedger.id });
+  return inserted.length > 0;
+}
+
+/** Look up a user by email (case-insensitive) — the join key for BMC purchase grants. */
+export async function getUserByEmail(
+  email: string,
+): Promise<{ id: string; email: string } | null> {
+  await ensureSchema();
+  const [row] = await getDb()
+    .select({ id: user.id, email: user.email })
+    .from(user)
+    .where(sql`lower(${user.email}) = lower(${email})`)
+    .limit(1);
+  return row ?? null;
 }
 
 /* ── Community patterns ─────────────────────────────────────────────────────────────
